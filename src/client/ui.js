@@ -378,7 +378,10 @@ function PetAnchor(props) {
       event.preventDefault()
       actions.interact()
     }
-    if (event.key === 'Escape') props.setPanelOpen(false)
+    if (event.key === 'Escape') {
+      props.setPanelOpen(false)
+      props.setMenuOpen(false)
+    }
   }
   const balanceText = snap.account.primary === null
     ? actions.translate('status.noData')
@@ -1091,7 +1094,11 @@ export function PetLayer(props) {
   }, [panelOpen, menuOpen])
 
   const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
-  const openSettings = () => {
+  const setPanel = (value) => {
+    if (value === false) {
+      setPanelOpen(false)
+      return
+    }
     setMenuOpen(false)
     setPanelOpen(true)
   }
@@ -1104,7 +1111,7 @@ export function PetLayer(props) {
       anchorRef,
       menuOpen,
       setMenuOpen,
-      setPanelOpen: openSettings,
+      setPanelOpen: setPanel,
     }),
     panelOpen
       ? uiH(SettingsPanel, {
