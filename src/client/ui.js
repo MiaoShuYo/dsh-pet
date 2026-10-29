@@ -488,7 +488,6 @@ function StatusTab(props) {
         ? uiH('div', { className: 'dshp-empty' }, t('panel.emptySession'))
         : uiH(React.Fragment, null,
           uiH(UiRow, { label: t('status.state'), value: t('state.' + snap.state) }),
-          uiH(UiRow, { label: t('status.tokens'), value: formatCompactNumber(session.tokens === null ? 0 : session.tokens.total) }),
           tokenRows,
           breakdownRows === null ? null : uiH('div', { className: 'dshp-list' }, ...breakdownRows),
           session.contextPercent === null ? null : uiH(React.Fragment, null,

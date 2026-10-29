@@ -42,10 +42,11 @@ export function panelPlacement(position, viewport, petSize, panel) {
     : Math.min(petRight + 12, (Number(viewport.width) || 0) - width - 12)
   const top = clamp((Number(viewport.height) || 0) - (Number(position.bottom) || 0) - effectiveHeight,
     12, Math.max(12, (Number(viewport.height) || 0) - effectiveHeight - 12))
+  const available = Math.max(160, (Number(viewport.height) || 0) - top - 12)
   return {
     left: Math.max(12, left),
     top,
     width,
-    maxHeight,
+    maxHeight: Math.max(160, Math.min(effectiveHeight, available)),
   }
 }

@@ -26,3 +26,9 @@ test('panelPlacement clamps a tall panel to the viewport', () => {
   assert.equal(placement.maxHeight, 376)
   assert.equal(placement.top, 12)
 })
+
+test('panelPlacement never lets a normal panel run past the bottom edge', () => {
+  const placement = panelPlacement({ right: 40, bottom: 120 }, { width: 1440, height: 900 }, 120, { width: 336, height: 560 })
+  assert.equal(placement.maxHeight, 560)
+  assert.ok(placement.top + placement.maxHeight <= 900 - 11)
+})
