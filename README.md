@@ -4,7 +4,7 @@
 
 ![DSH Pet preview](docs/preview.svg)
 
-> **发布前**：把本文件与站点中的 `OWNER` 替换成你的 GitHub 账号/组织名。CI、Release 包名与 Pages 索引会自动从 `GITHUB_REPOSITORY` 读取真实仓库地址，代码本身不依赖它。
+> **发布前**：把本文件、`package.json`、`site/index.html` 中的 `OWNER` 替换成你的 GitHub 账号/组织名。CI、Release 包名与 Pages 索引会自动从 `GITHUB_REPOSITORY` 读取真实仓库地址，代码本身不依赖它。
 
 ## 功能
 
@@ -78,7 +78,7 @@ dsh plugin --profile web add ./
 - **拖动**：按住宠物拖动；位置自动保存并钳制在窗口内。
 - **单击**：互动台词 + 短暂开心。
 - **双击 / 右键 / 长按**：打开设置面板。
-- **状态牌**：余额（点击充值）· 本会话 token（点击面板）· 上下文环。
+- **状态牌**：余额（点击充值）· 本会话 token（点击面板）· 上下文环 · `⋯` 快捷菜单（充值/用量/刷新/复制/设置/隐藏）。
 - **面板页签**：状态 / 外观 / 提醒 / 专注 / 数据。
 - **隐藏**：外观 → 隐藏桌宠，右侧边缘出现 paw 手柄，点击恢复。
 - **演示状态**：数据 → 演示状态，可模拟工作中、等待、低余额、上下文 90%、开心、难过，30 秒后自动结束，适合截图与验收。
@@ -167,7 +167,7 @@ docs/            skins.md、QA.md、preview.svg
 ## 发布到 GitHub
 
 1. 新建仓库（建议名 `dsh-pet`），把本目录推上去。
-2. 把 README、`site/index.html` 中的 `OWNER` 替换为你的账号；CI 与市场索引会自动使用 `GITHUB_REPOSITORY`。
+2. 把 README、`package.json`、`site/index.html` 中的 `OWNER` 替换为你的账号；CI 与市场索引会自动使用 `GITHUB_REPOSITORY`。
 3. 仓库 Settings → Pages → Source 选择 **GitHub Actions**。
 4. 发布版本：
 
@@ -200,3 +200,40 @@ npm run market:index
 ## License
 
 MIT。所有内置宠物形象均为本项目原创矢量图形；不包含任何第三方角色素材。第三方皮肤由导入者自行负责版权。
+
+---
+
+## English
+
+DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It lives in the Web Client's `shell.overlay` layer and shows account balance, per-session token usage and context-window occupancy.
+
+**Highlights**
+
+- Draggable, hideable, keyboard-accessible pet with a compact status plaque and quick menu.
+- Low-balance, context 80/90%, turn completion/failure, background completion and waiting-for-approval bubbles.
+- Session projections: `tokenUsage`, `contextPressure`, `contextBreakdown`; balance reuses the existing account Remote. No new network calls, no telemetry.
+- Daily stats in `localStorage`, pomodoro/water reminders, optional OS notifications and chimes.
+- Three original vector skins plus validated image-skin import/export (`docs/skins.md`).
+- Chinese/English UI, light/dark theme, reduced-motion support.
+
+**Install** (after replacing `OWNER`):
+
+```bash
+dsh plugin --profile web add github:OWNER/dsh-pet#v0.1.0
+# or a release tarball
+dsh plugin --profile web add https://github.com/OWNER/dsh-pet/releases/download/v0.1.0/dsh-pet-0.1.0.tgz
+```
+
+Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://OWNER.github.io/dsh-pet/index.json`.
+
+**Develop**
+
+```bash
+npm run build && npm run check && npm test
+```
+
+`lib/client.js` is committed because GitHub installs do not run a build. See `docs/QA.md` for the manual matrix; `src/` is the source of truth, and the build has no dependencies.
+
+**Compatibility** — DSH `>=0.2.0-rc.2 <0.3.0`; balance requires a DeepSeek Platform account. API-key-only setups show the account as unavailable. Context occupancy is the approximate value DSH itself exposes.
+
+**License** — MIT. Built-in pet art is original vector work; no third-party character assets are bundled.

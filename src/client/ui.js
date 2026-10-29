@@ -218,7 +218,60 @@ function PetPlaque(props) {
       percent: snap.contextPercent,
       tone: snap.contextTone,
       label: actions.translate('aria.context', { percent: formatPercent(snap.contextPercent) }),
-    }))
+    }),
+    uiH('button', {
+      type: 'button',
+      className: 'dshp-more',
+      'aria-label': actions.translate('actions.menu'),
+      'aria-haspopup': 'menu',
+      'aria-expanded': props.menuOpen === true,
+      onClick: props.onMenu,
+    }, '\u22ef'))
+}
+
+/**
+ * The quick menu anchored to the pet.
+ * @param props - snapshot, actions, close and settings callbacks.
+ * @returns React node.
+ */
+function PetMenu(props) {
+  const snap = props.snap
+  const actions = props.actions
+  const t = actions.translate
+  const accountItems = []
+  if (snap.account.links !== null && snap.account.links !== undefined) {
+    accountItems.push({
+      key: 'topup',
+      label: t('actions.openTopUp'),
+      run: () => { props.onClose(); actions.openLink('topUp') },
+    })
+    accountItems.push({
+      key: 'usage',
+      label: t('actions.openUsage'),
+      run: () => { props.onClose(); actions.openLink('usage') },
+    })
+  }
+  const generalItems = [
+    { key: 'refresh', label: t('actions.refresh'), run: () => { props.onClose(); actions.refresh() } },
+    { key: 'copy', label: t('actions.copy'), run: () => { props.onClose(); void actions.copySummary() } },
+    { key: 'settings', label: t('actions.settings'), run: () => { props.onClose(); props.onSettings() } },
+    { key: 'hide', label: t('actions.hide'), run: () => { props.onClose(); actions.setPrefs({ visible: false }) } },
+  ]
+  const item = entry => uiH('button', {
+    key: entry.key,
+    type: 'button',
+    role: 'menuitem',
+    className: 'dshp-menu-item',
+    onClick: entry.run,
+  }, entry.label)
+  return uiH('div', {
+    className: 'dshp-menu',
+    role: 'menu',
+    'aria-label': t('actions.menu'),
+  },
+  accountItems.map(item),
+  accountItems.length === 0 ? null : uiH('div', { key: 'sep', className: 'dshp-menu-sep' }),
+  generalItems.map(item))
 }
 
 /**
@@ -346,6 +399,14 @@ function PetAnchor(props) {
   }
   return uiH('div', { className: 'dshp-root dshp-anchor', style, ref: props.anchorRef },
     snap.bubble === null ? null : uiH(PetBubble, { bubble: snap.bubble, actions }),
+    props.menuOpen === true
+      ? uiH(PetMenu, {
+        snap,
+        actions,
+        onClose: () => { props.setMenuOpen(false) },
+        onSettings: () => { props.setMenuOpen(false); props.setPanelOpen(true) },
+      })
+      : null,
     uiH('div', { className: 'dshp-pet-wrap' },
       uiH('button', {
         type: 'button',
@@ -376,7 +437,13 @@ function PetAnchor(props) {
       snap.focus.phase === 'idle' || snap.focus.paused ? null
         : uiH('span', { className: 'dshp-focus-chip' }, snap.focus.clock)),
       snap.prefs.showPlaque
-        ? uiH(PetPlaque, { snap, actions, onOpen: () => { props.setPanelOpen(true) } })
+        ? uiH(PetPlaque, {
+          snap,
+          actions,
+          menuOpen: props.menuOpen,
+          onMenu: () => { props.setMenuOpen(!(props.menuOpen === true)) },
+          onOpen: () => { props.setPanelOpen(true) },
+        })
         : null))
 }
 
@@ -972,6 +1039,7 @@ export function PetLayer(props) {
   const snap = props.usePet(selector => selector)
   const statuses = props.useSessionStatus(selector => selector)
   const [panelOpen, setPanelOpen] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
   const anchorRef = React.useRef(null)
   const panelRef = React.useRef(null)
 
@@ -980,15 +1048,22 @@ export function PetLayer(props) {
   }, [statuses, props.onStatuses])
 
   React.useEffect(() => {
-    if (!panelOpen) return undefined
+    if (!panelOpen && !menuOpen) return undefined
     const onKey = (event) => {
-      if (event.key === 'Escape') setPanelOpen(false)
+      if (event.key === 'Escape') {
+        setPanelOpen(false)
+        setMenuOpen(false)
+      }
     }
     const onDown = (event) => {
       const target = event.target
-      if (panelRef.current !== null && panelRef.current.contains(target)) return
+      if (panelRef.current !== null && panelRef.current.contains(target)) {
+        if (menuOpen) setMenuOpen(false)
+        return
+      }
       if (anchorRef.current !== null && anchorRef.current.contains(target)) return
       setPanelOpen(false)
+      setMenuOpen(false)
     }
     document.addEventListener('keydown', onKey)
     document.addEventListener('pointerdown', onDown, true)
@@ -996,9 +1071,13 @@ export function PetLayer(props) {
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onDown, true)
     }
-  }, [panelOpen])
+  }, [panelOpen, menuOpen])
 
   const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
+  const openSettings = () => {
+    setMenuOpen(false)
+    setPanelOpen(true)
+  }
   if (!snap.prefs.visible) return uiH(PetHandle, { snap, actions: props })
   return uiH(React.Fragment, null,
     uiH(PetAnchor, {
@@ -1006,7 +1085,9 @@ export function PetLayer(props) {
       actions: props,
       size,
       anchorRef,
-      setPanelOpen,
+      menuOpen,
+      setMenuOpen,
+      setPanelOpen: openSettings,
     }),
     panelOpen
       ? uiH(SettingsPanel, {

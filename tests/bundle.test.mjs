@@ -46,7 +46,7 @@ function renderNode(node) {
     }))
   }
   if (node.type === Symbol.for('react.fragment')) return renderNode(node.children)
-  return node
+  return { ...node, children: node.children.map(renderNode) }
 }
 
 function createEnvironment() {
@@ -277,13 +277,28 @@ test('built bundle registers and applies with a fake host', async () => {
       const current = index
       index += 1
       if (current === 0) return [true, () => {}]
-      if (current === 2) return [tab, () => {}]
+      if (current === 3) return [tab, () => {}]
       return [typeof initial === 'function' ? initial() : initial, () => {}]
     }
     const panelTree = renderNode(registration.component(tabProps))
     assert.ok(panelTree !== null)
+    assert.ok(JSON.stringify(panelTree).includes('dshp-panel'))
     react.React.useState = originalUseState
   }
+
+  react.resetHooks()
+  const originalUseState = react.React.useState
+  let menuIndex = 0
+  react.React.useState = (initial) => {
+    const current = menuIndex
+    menuIndex += 1
+    if (current === 0) return [false, () => {}]
+    if (current === 1) return [true, () => {}]
+    return [typeof initial === 'function' ? initial() : initial, () => {}]
+  }
+  const menuTree = renderNode(registration.component(props))
+  assert.ok(JSON.stringify(menuTree).includes('dshp-menu'))
+  react.React.useState = originalUseState
 
   for (const cleanup of env.cleanups.reverse()) {
     try { cleanup() } catch (_error) { /* idempotent */ }

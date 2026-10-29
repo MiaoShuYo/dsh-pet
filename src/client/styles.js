@@ -109,6 +109,51 @@ body[data-ds-dark-theme] .dshp-root {
 .dshp-balance { font-weight: 650; }
 .dshp-tokens { color: var(--dshp-muted); font-variant-numeric: tabular-nums; }
 .dshp-balance:hover, .dshp-tokens:hover { color: var(--dshp-accent); }
+.dshp-more {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dshp-muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+}
+.dshp-more:hover, .dshp-more[aria-expanded="true"] { background: var(--dshp-bg2); color: var(--dshp-fg); }
+.dshp-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 176px;
+  padding: 6px;
+  border: 1px solid var(--dshp-border);
+  border-radius: 12px;
+  background: var(--dshp-bg);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.3);
+  pointer-events: auto;
+  animation: dshp-pop 0.14s ease-out;
+}
+.dshp-menu-item {
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dshp-fg);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.dshp-menu-item:hover { background: var(--dshp-bg2); }
+.dshp-menu-sep { height: 1px; margin: 4px 6px; background: var(--dshp-border); }
 .dshp-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--dshp-muted); opacity: 0.55; }
 .dshp-ring { width: 16px; height: 16px; display: block; flex: none; }
 .dshp-ring circle { fill: none; stroke-width: 3; stroke-linecap: round; }

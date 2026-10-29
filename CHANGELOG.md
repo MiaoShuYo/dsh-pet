@@ -19,6 +19,7 @@ All notable changes to this project are documented here. The format follows
 - Low-balance, context 80%/90%, turn completion/failure, background completion,
   and waiting-for-approval/question bubbles.
 - Optional OS notifications and WebAudio chimes.
+- Quick menu on the plaque for top-up, usage, refresh, copy, settings and hide.
 - Daily token/balance statistics in `localStorage` (60 days), copyable summary.
 - Pomodoro focus/break timer and water reminders with absolute deadlines.
 - Three original vector skins plus import/export of image skin packs and

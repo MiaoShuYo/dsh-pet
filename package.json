@@ -45,6 +45,14 @@
     "tokens",
     "balance"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/dsh-pet.git"
+  },
+  "homepage": "https://github.com/OWNER/dsh-pet#readme",
+  "bugs": {
+    "url": "https://github.com/OWNER/dsh-pet/issues"
+  },
   "author": "DSH Pet contributors",
   "license": "MIT"
 }
