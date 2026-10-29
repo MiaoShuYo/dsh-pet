@@ -756,6 +756,17 @@ function AlertsTab(props) {
           { value: 'USD', label: 'USD' },
         ],
         onChange: (value) => { setAlert({ lowBalanceCurrency: value }) },
+      }),
+      uiH(UiSelect, {
+        label: t('status.refreshEvery'),
+        value: String(snap.prefs.account.refreshSeconds),
+        options: [
+          { value: '30', label: '30s' },
+          { value: '60', label: '60s' },
+          { value: '300', label: '5m' },
+          { value: '0', label: t('status.off') },
+        ],
+        onChange: (value) => { actions.setPrefs({ account: { refreshSeconds: Number(value) } }) },
       })),
     uiH('div', { className: 'dshp-section' },
       uiH(UiSectionTitle, null, t('alerts.context')),
@@ -909,6 +920,12 @@ function DataTab(props) {
   return uiH('div', null,
     uiH('div', { className: 'dshp-section' },
       uiH(UiSectionTitle, null, t('data.today')),
+      uiH(UiToggle, {
+        label: t('data.recordStats'),
+        checked: snap.prefs.stats.enabled,
+        onChange: (value) => { actions.setPrefs({ stats: { enabled: value } }) },
+      }),
+      snap.prefs.stats.enabled ? null : uiH(UiHint, null, t('data.statsOff')),
       uiH(UiRow, { label: t('data.tokens'), value: formatCompactNumber(snap.stats.total) }),
       uiH(UiRow, {
         label: t('data.balance'),
