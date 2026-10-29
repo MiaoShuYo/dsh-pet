@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build client bundle
+        run: npm run build
+
+      - name: Repository checks
+        run: npm run check
+
+      - name: Tests
+        run: npm test
+
+      - name: Bundle is committed and fresh
+        run: git diff --exit-code

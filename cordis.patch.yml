@@ -1,0 +1,9 @@
+# dsh-pet bundle patch: mount the host half.
+#
+# The browser half is discovered automatically through the package's
+# `dsh.client` declaration and `exports["./client"]`. The host half is a
+# deliberately empty Cordis plugin; every feature lives in the browser.
+
+- insert:
+    - id: dsh-pet
+      name: 'dsh-pet'

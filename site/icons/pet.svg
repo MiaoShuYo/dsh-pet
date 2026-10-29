@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="DSH Pet">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151a2e"/>
+      <stop offset="1" stop-color="#0b0f1c"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6da8ff"/>
+      <stop offset="1" stop-color="#59d6b0"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <path d="M88 96 L76 54 L112 78 Z" fill="#2b3147"/>
+  <path d="M168 96 L180 54 L144 78 Z" fill="#2b3147"/>
+  <path d="M92 92 L85 66 L106 80 Z" fill="#f3a7bc"/>
+  <path d="M164 92 L171 66 L150 80 Z" fill="#f3a7bc"/>
+  <ellipse cx="128" cy="150" rx="62" ry="54" fill="#2b3147"/>
+  <ellipse cx="128" cy="160" rx="38" ry="32" fill="#3b435c"/>
+  <circle cx="128" cy="110" r="54" fill="#2b3147"/>
+  <ellipse cx="108" cy="106" rx="8" ry="11" fill="#101522"/>
+  <ellipse cx="148" cy="106" rx="8" ry="11" fill="#101522"/>
+  <circle cx="110.5" cy="102" r="2.8" fill="#a9ecff"/>
+  <circle cx="150.5" cy="102" r="2.8" fill="#a9ecff"/>
+  <ellipse cx="128" cy="124" rx="9" ry="6" fill="#f3a7bc"/>
+  <path d="M118 132 Q128 140 138 132" fill="none" stroke="#101522" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="96" cy="124" rx="9" ry="5" fill="#ff9fb6" opacity="0.5"/>
+  <ellipse cx="160" cy="124" rx="9" ry="5" fill="#ff9fb6" opacity="0.5"/>
+  <path d="M76 168 Q128 196 180 168 L176 186 Q128 214 80 186 Z" fill="url(#accent)"/>
+  <circle cx="196" cy="60" r="12" fill="#59d6b0"/>
+  <path d="M196 52 L198 58 L204 60 L198 62 L196 68 L194 62 L188 60 L194 58 Z" fill="#0b0f1c"/>
+</svg>

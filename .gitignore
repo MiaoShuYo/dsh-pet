@@ -1,0 +1,10 @@
+node_modules/
+*.tgz
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+coverage/
+site/.cache/
+site/index.json
+.tmp-*

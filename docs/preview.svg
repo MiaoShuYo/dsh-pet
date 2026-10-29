@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="DSH Pet preview">
+  <defs>
+    <linearGradient id="pbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10162a"/>
+      <stop offset="1" stop-color="#070b16"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.75" cy="0.32" r="0.55">
+      <stop offset="0" stop-color="#3b5bdb" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#3b5bdb" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6da8ff"/>
+      <stop offset="1" stop-color="#59d6b0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#pbg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g opacity="0.12" stroke="#8aa0d8">
+    <path d="M0 120 H1200 M0 240 H1200 M0 360 H1200 M0 480 H1200"/>
+    <path d="M120 0 V630 M240 0 V630 M360 0 V630 M480 0 V630 M600 0 V630 M720 0 V630 M840 0 V630 M960 0 V630 M1080 0 V630"/>
+  </g>
+
+  <text x="72" y="126" fill="#eef2ff" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="64" font-weight="800" letter-spacing="-2">DSH Pet</text>
+  <text x="74" y="174" fill="#9aa6c7" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="24">应用内桌面宠物 · 余额 / Token / 上下文提醒</text>
+
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+    <g transform="translate(74 228)">
+      <rect width="216" height="44" rx="22" fill="#141b2f" stroke="#2a3552"/>
+      <text x="22" y="28" fill="#cdd8f5" font-size="17">账户余额 · 低于阈值提醒</text>
+    </g>
+    <g transform="translate(306 228)">
+      <rect width="216" height="44" rx="22" fill="#141b2f" stroke="#2a3552"/>
+      <text x="22" y="28" fill="#cdd8f5" font-size="17">本会话 Token</text>
+    </g>
+    <g transform="translate(74 288)">
+      <rect width="216" height="44" rx="22" fill="#141b2f" stroke="#2a3552"/>
+      <text x="22" y="28" fill="#cdd8f5" font-size="17">上下文 80% / 90% 预警</text>
+    </g>
+    <g transform="translate(306 288)">
+      <rect width="240" height="44" rx="22" fill="#141b2f" stroke="#2a3552"/>
+      <text x="22" y="28" fill="#cdd8f5" font-size="17">轮次完成 / 失败 / 等待</text>
+    </g>
+    <g transform="translate(74 348)">
+      <rect width="160" height="44" rx="22" fill="#141b2f" stroke="#2a3552"/>
+      <text x="22" y="28" fill="#cdd8f5" font-size="17">番茄钟 / 喝水</text>
+    </g>
+    <g transform="translate(250 348)">
+      <rect width="160" height="44" rx="22" fill="#141b2f" stroke="#2a3552"/>
+      <text x="22" y="28" fill="#cdd8f5" font-size="17">可换肤</text>
+    </g>
+  </g>
+
+  <g transform="translate(690 78)" filter="url(#shadow)">
+    <rect x="0" y="0" width="430" height="470" rx="30" fill="#0e1426" stroke="#26304a"/>
+    <g transform="translate(95 40) scale(2.0)">
+      <path d="M88 96 L76 54 L112 78 Z" fill="#2b3147"/>
+      <path d="M168 96 L180 54 L144 78 Z" fill="#2b3147"/>
+      <path d="M92 92 L85 66 L106 80 Z" fill="#f3a7bc"/>
+      <path d="M164 92 L171 66 L150 80 Z" fill="#f3a7bc"/>
+      <ellipse cx="128" cy="150" rx="62" ry="54" fill="#2b3147"/>
+      <ellipse cx="128" cy="160" rx="38" ry="32" fill="#3b435c"/>
+      <circle cx="128" cy="110" r="54" fill="#2b3147"/>
+      <ellipse cx="108" cy="106" rx="8" ry="11" fill="#101522"/>
+      <ellipse cx="148" cy="106" rx="8" ry="11" fill="#101522"/>
+      <circle cx="110.5" cy="102" r="2.8" fill="#a9ecff"/>
+      <circle cx="150.5" cy="102" r="2.8" fill="#a9ecff"/>
+      <ellipse cx="128" cy="124" rx="9" ry="6" fill="#f3a7bc"/>
+      <path d="M118 132 Q128 140 138 132" fill="none" stroke="#101522" stroke-width="4" stroke-linecap="round"/>
+      <ellipse cx="96" cy="124" rx="9" ry="5" fill="#ff9fb6" opacity="0.5"/>
+      <ellipse cx="160" cy="124" rx="9" ry="5" fill="#ff9fb6" opacity="0.5"/>
+      <path d="M76 168 Q128 196 180 168 L176 186 Q128 214 80 186 Z" fill="url(#accent)"/>
+    </g>
+    <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+      <rect x="56" y="330" width="318" height="58" rx="29" fill="#161d33" stroke="#2f3a5c"/>
+      <text x="82" y="366" fill="#eef2ff" font-size="21" font-weight="700">¥12.34</text>
+      <circle cx="178" cy="359" r="3" fill="#5b6688"/>
+      <text x="196" y="366" fill="#9aa6c7" font-size="20">12.3K tok</text>
+      <circle cx="322" cy="359" r="15" fill="none" stroke="#2a3552" stroke-width="5"/>
+      <circle cx="322" cy="359" r="15" fill="none" stroke="#e6a23c" stroke-width="5" stroke-dasharray="58 94" stroke-linecap="round" transform="rotate(-90 322 359)"/>
+      <text x="356" y="366" fill="#e6a23c" font-size="17">43%</text>
+    </g>
+    <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif">
+      <rect x="56" y="404" width="318" height="34" rx="12" fill="#1b2340"/>
+      <text x="72" y="426" fill="#cdd8f5" font-size="14">上下文快满了，考虑 /compact</text>
+    </g>
+  </g>
+
+  <g font-family="ui-monospace, SFMono-Regular, Consolas, monospace">
+    <rect x="74" y="470" width="520" height="54" rx="12" fill="#0b1120" stroke="#26304a"/>
+    <text x="94" y="503" fill="#9aa6c7" font-size="17">dsh plugin --profile web add github:OWNER/dsh-pet</text>
+  </g>
+  <text x="74" y="570" fill="#5f6b8c" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15">MIT · In-app only · No telemetry · Stats stay in localStorage</text>
+</svg>

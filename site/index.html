@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSH Pet · 应用内桌面宠物</title>
+  <meta name="description" content="DSH Pet: an in-app desktop pet for DeepSeek Harness with balance, token, context alerts and skins.">
+  <link rel="icon" href="icons/pet.svg" type="image/svg+xml">
+  <style>
+    :root { color-scheme: dark; --fg:#eef2ff; --muted:#9aa6c7; --accent:#6da8ff; --ok:#59d6b0; --bg:#0b0f1c; --card:#141a2c; --line:#26304a; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: radial-gradient(900px 500px at 20% 0%, #1a2444 0%, var(--bg) 55%); color:var(--fg); line-height:1.6; }
+    main { max-width: 980px; margin: 0 auto; padding: 56px 24px 80px; }
+    .hero { display:flex; gap:32px; align-items:center; flex-wrap:wrap; margin-bottom:48px; }
+    .hero img { width:132px; height:132px; border-radius:28px; box-shadow:0 24px 60px rgba(0,0,0,.45); }
+    h1 { font-size: clamp(36px, 6vw, 56px); margin:0 0 8px; letter-spacing:-.03em; }
+    .tagline { color:var(--muted); font-size:18px; margin:0; max-width:640px; }
+    .badges { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+    .badge { border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:12px; color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin:28px 0 40px; }
+    .card { background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
+    .card h3 { margin:0 0 6px; font-size:15px; }
+    .card p { margin:0; color:var(--muted); font-size:13px; }
+    h2 { font-size:22px; margin:40px 0 12px; }
+    pre { background:#0f1526; border:1px solid var(--line); border-radius:12px; padding:14px 16px; overflow-x:auto; font-size:13px; line-height:1.7; }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    a { color:var(--accent); }
+    .muted { color:var(--muted); }
+    .note { border-left:3px solid var(--accent); padding:8px 12px; background:rgba(109,168,255,.08); border-radius:0 10px 10px 0; color:var(--muted); font-size:13px; }
+    footer { margin-top:48px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <img src="icons/pet.svg" alt="DSH Pet">
+      <div>
+        <h1>DSH Pet</h1>
+        <p class="tagline">应用内桌面宠物：余额、本会话 token、上下文占用与提醒。Runs inside the DSH Web / Desktop client.</p>
+        <div class="badges">
+          <span class="badge">DSH 0.2.x</span>
+          <span class="badge">MIT</span>
+          <span class="badge">No telemetry</span>
+          <span class="badge">Local-only stats</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <div class="card"><h3>余额与 token</h3><p>常驻状态牌显示余额、本会话 token 与上下文占用环；点击直达用量/充值页。</p></div>
+      <div class="card"><h3>聪明提醒</h3><p>余额不足、上下文 80%/90%、轮次完成/失败、等待审批或回答，都会有对应气泡。</p></div>
+      <div class="card"><h3>可换肤</h3><p>三套内置原创矢量皮肤，支持导入 png/jpeg/webp/gif 图片皮肤，格式开放。</p></div>
+      <div class="card"><h3>专注与喝水</h3><p>番茄钟、休息与喝水提醒；绝对截止时间，切到后台也不漂移。</p></div>
+    </div>
+
+    <h2>安装 / Install</h2>
+    <p class="muted">先通过 GitHub 安装到 Web profile，然后重启 DSH 并在「插件」页启用。</p>
+    <pre><code># 1) 直接从 GitHub 安装（发布后把 OWNER 换成你的账号）<br>dsh plugin --profile web add <span id="repo-command">github:OWNER/dsh-pet</span><br><br># 2) 或从 Release 预构建包安装<br>dsh plugin --profile web add &lt;release-tgz-url&gt;<br><br># 3) 或把下面这个索引加进「插件 → 发现」<br><span id="market-url">…/index.json</span></code></pre>
+    <p class="note">「发现」页需要先在插件页打开实验性的「自定义插件市场」组合包。安装后需完全退出并重启 DSH 桌面应用及其 Host 进程，浏览器刷新不足以加载新的 Host 插件。</p>
+
+    <h2>链接 / Links</h2>
+    <p><a id="repo-link" href="#">GitHub repository</a> · <a href="./index.json">Market index</a> · <a href="https://github.com/deepseek-ai/deepseek-harness" rel="noreferrer">DeepSeek Harness</a></p>
+
+    <footer>
+      <span>DSH Pet · MIT</span>
+      <span>Made for DeepSeek Harness. No account credentials, chat content or telemetry leave your machine.</span>
+    </footer>
+  </main>
+  <script>
+    (function () {
+      var market = location.origin + location.pathname.replace(/index\.html$/, '') + 'index.json'
+      var marketNode = document.getElementById('market-url')
+      if (marketNode) marketNode.textContent = market
+      fetch('./index.json', { cache: 'no-store' }).then(function (response) { return response.json() }).then(function (index) {
+        var plugin = index.plugins && index.plugins[0]
+        var repo = plugin && plugin.repository && plugin.repository.url
+        if (!repo) return
+        var command = document.getElementById('repo-command')
+        if (command) command.textContent = 'github:' + repo.replace(/^https:\/\/github\.com\//, '')
+        var link = document.getElementById('repo-link')
+        if (link) link.href = repo
+      }).catch(function () { /* static preview */ })
+    })()
+  </script>
+</body>
+</html>
