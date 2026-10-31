@@ -52,7 +52,7 @@ dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.1.0
 2. 进入 **发现 → 添加索引源**，填入：
 
 ```text
-https://MiaoShuYo.github.io/dsh-pet/index.json
+https://miaoshuyo.github.io/dsh-pet/index.json
 ```
 
 3. 找到 **DSH Pet**，确认来源后安装。
@@ -182,6 +182,8 @@ release 工作流会：
 - `npm pack` 并把 `dsh-pet-0.1.0.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.1.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+
 也可以本地预览市场索引：
 
 ```bash
@@ -224,7 +226,7 @@ dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.1.0
 dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.1.0/dsh-pet-0.1.0.tgz
 ```
 
-Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://MiaoShuYo.github.io/dsh-pet/index.json`.
+Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.
 
 **Develop**
 
