@@ -4,7 +4,7 @@
 
 ![DSH Pet preview](docs/preview.svg)
 
-> **发布前**：把本文件、`package.json`、`site/index.html` 中的 `OWNER` 替换成你的 GitHub 账号/组织名。CI、Release 包名与 Pages 索引会自动从 `GITHUB_REPOSITORY` 读取真实仓库地址，代码本身不依赖它。
+> 仓库地址已指向 **MiaoShuYo/dsh-pet**。如要迁移到别的账号，替换本文件、`package.json`、`site/index.html` 中的 `MiaoShuYo`；CI、Release 包名与 Pages 索引会自动从 `GITHUB_REPOSITORY` 读取真实仓库地址。
 
 ## 功能
 
@@ -35,13 +35,13 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/OWNER/dsh-pet/releases/download/v0.1.0/dsh-pet-0.1.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.1.0/dsh-pet-0.1.0.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:OWNER/dsh-pet#v0.1.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.1.0
 ```
 
 `lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。
@@ -52,7 +52,7 @@ dsh plugin --profile web add github:OWNER/dsh-pet#v0.1.0
 2. 进入 **发现 → 添加索引源**，填入：
 
 ```text
-https://OWNER.github.io/dsh-pet/index.json
+https://MiaoShuYo.github.io/dsh-pet/index.json
 ```
 
 3. 找到 **DSH Pet**，确认来源后安装。
@@ -62,7 +62,7 @@ https://OWNER.github.io/dsh-pet/index.json
 ### 从源码安装（开发）
 
 ```bash
-git clone https://github.com/OWNER/dsh-pet.git
+git clone https://github.com/MiaoShuYo/dsh-pet.git
 cd dsh-pet
 dsh plugin --profile web add ./
 ```
@@ -167,7 +167,7 @@ docs/            skins.md、QA.md、preview.svg
 ## 发布到 GitHub
 
 1. 新建仓库（建议名 `dsh-pet`），把本目录推上去。
-2. 把 README、`package.json`、`site/index.html` 中的 `OWNER` 替换为你的账号；CI 与市场索引会自动使用 `GITHUB_REPOSITORY`。
+2. 仓库地址已指向 `MiaoShuYo/dsh-pet`；如需更换账号，替换 README、`package.json`、`site/index.html` 中的 `MiaoShuYo`。
 3. 仓库 Settings → Pages → Source 选择 **GitHub Actions**。
 4. 发布版本：
 
@@ -216,15 +216,15 @@ DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deeps
 - Three original vector skins plus validated image-skin import/export (`docs/skins.md`).
 - Chinese/English UI, light/dark theme, reduced-motion support.
 
-**Install** (after replacing `OWNER`):
+**Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:OWNER/dsh-pet#v0.1.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.1.0
 # or a release tarball
-dsh plugin --profile web add https://github.com/OWNER/dsh-pet/releases/download/v0.1.0/dsh-pet-0.1.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.1.0/dsh-pet-0.1.0.tgz
 ```
 
-Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://OWNER.github.io/dsh-pet/index.json`.
+Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://MiaoShuYo.github.io/dsh-pet/index.json`.
 
 **Develop**
 

@@ -47,11 +47,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/dsh-pet.git"
+    "url": "git+https://github.com/MiaoShuYo/dsh-pet.git"
   },
-  "homepage": "https://github.com/OWNER/dsh-pet#readme",
+  "homepage": "https://github.com/MiaoShuYo/dsh-pet#readme",
   "bugs": {
-    "url": "https://github.com/OWNER/dsh-pet/issues"
+    "url": "https://github.com/MiaoShuYo/dsh-pet/issues"
   },
   "author": "DSH Pet contributors",
   "license": "MIT"
