@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-01
+
+### Changed
+
+- Added a custom dark TabItem template so the selected settings tab no longer
+  shows the default white WPF header. The settings surface now matches the
+  dark in-app panel: rounded tabs, dark inputs, status rows and footer.
+- Settings footer defaults to the current version.
+
 ## [0.5.1] - 2026-11-01
 
 ### Changed

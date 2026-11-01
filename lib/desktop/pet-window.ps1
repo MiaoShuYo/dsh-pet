@@ -707,6 +707,15 @@ function Build-Settings() {
   $tabs.Foreground = Brush '#DCE2EC'
   $tabs.BorderThickness = '0'
   $tabs.Padding = '8,8,8,0'
+  $stylePath = Join-Path $script:Root 'settings-style.xaml'
+  if (Test-Path -LiteralPath $stylePath) {
+    try {
+      $stream = [System.IO.File]::OpenRead($stylePath)
+      $tabStyle = [System.Windows.Markup.XamlReader]::Load($stream)
+      $stream.Close()
+      $tabs.ItemContainerStyle = $tabStyle
+    } catch { }
+  }
   [System.Windows.Controls.Grid]::SetRow($tabs, 1)
   $grid.Children.Add($tabs) | Out-Null
 
@@ -720,7 +729,7 @@ function Build-Settings() {
   $footerText.VerticalAlignment = 'Center'
   $footerText.Margin = '18,0,0,0'
   $script:SettingsVersion = New-Object System.Windows.Controls.TextBlock
-  $script:SettingsVersion.Text = 'v0.5.0'
+  $script:SettingsVersion.Text = 'v0.5.2'
   $script:SettingsVersion.FontSize = 10
   $script:SettingsVersion.Foreground = Brush '#7F8796'
   $script:SettingsVersion.VerticalAlignment = 'Center'
@@ -747,6 +756,13 @@ function Build-Settings() {
   Add-StatusRow $status '缓存读取' 'cacheRead'
   Add-StatusRow $status '缓存写入' 'cacheWrite'
   Add-StatusRow $status '上下文' 'context'
+  $statusButtons = New-Object System.Windows.Controls.StackPanel
+  $statusButtons.Orientation = 'Horizontal'
+  $statusButtons.Margin = '0,10,0,0'
+  Add-ActionButton $statusButtons '刷新余额' { Send-SettingsAction 'refresh' }
+  Add-ActionButton $statusButtons '去充值' { Send-SettingsAction 'openLink' @{ kind = 'topUp' } }
+  Add-ActionButton $statusButtons '用量页' { Send-SettingsAction 'openLink' @{ kind = 'usage' } }
+  $status.Children.Add($statusButtons) | Out-Null
 
   $appearance = New-TabPanel $tabs '外观'
   Add-SectionTitle $appearance '宠物'
@@ -805,17 +821,16 @@ function Build-Settings() {
   Add-ActionButton $data '等待中' { Send-SettingsAction 'demo' @{ kind = 'waiting' } }
   Add-ActionButton $data '开心' { Send-SettingsAction 'demo' @{ kind = 'happy' } }
   Add-ActionButton $data '难过' { Send-SettingsAction 'demo' @{ kind = 'sad' } }
-
-  $desktop = New-TabPanel $tabs '桌面'
-  Add-ComboSetting $desktop '余额刷新间隔' 'account.refreshSeconds' @(
+  Add-SectionTitle $data '账户与设置'
+  Add-ComboSetting $data '余额刷新间隔' 'account.refreshSeconds' @(
     [pscustomobject]@{ Label = '30 秒'; Value = 30 },
     [pscustomobject]@{ Label = '60 秒'; Value = 60 },
     [pscustomobject]@{ Label = '300 秒'; Value = 300 },
     [pscustomobject]@{ Label = '关闭'; Value = 0 }
   ) 60
-  Add-ActionButton $desktop '把宠物移回屏幕右下角' { Set-DefaultPosition; Save-Position }
-  Add-ActionButton $desktop '打开 DSH' { Focus-DSH }
-  Add-ActionButton $desktop '导出设置' {
+  Add-ActionButton $data '把宠物移回屏幕右下角' { Set-DefaultPosition; Save-Position }
+  Add-ActionButton $data '打开 DSH' { Focus-DSH }
+  Add-ActionButton $data '导出设置' {
     try {
       $dialog = New-Object Microsoft.Win32.SaveFileDialog
       $dialog.Filter = 'JSON|*.json'
@@ -825,7 +840,7 @@ function Build-Settings() {
       }
     } catch { }
   }
-  Add-ActionButton $desktop '导入设置' {
+  Add-ActionButton $data '导入设置' {
     try {
       $dialog = New-Object Microsoft.Win32.OpenFileDialog
       $dialog.Filter = 'JSON|*.json'

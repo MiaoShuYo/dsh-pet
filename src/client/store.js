@@ -612,6 +612,7 @@ export class PetStore {
         const params = result.params !== null && typeof result.params === 'object' ? result.params : {}
         if (result.action === 'resetStats') this.resetStats()
         else if (result.action === 'refresh') void this.refreshAccount(true)
+        else if (result.action === 'openLink' && typeof params.kind === 'string') this.openLink(params.kind)
         else if (result.action === 'demo' && typeof params.kind === 'string') this.demoMode(params.kind)
       }
     } catch (_error) { /* host bridge not available */ }
