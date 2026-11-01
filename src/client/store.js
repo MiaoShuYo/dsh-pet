@@ -480,6 +480,23 @@ export class PetStore {
       tasks,
       taskCount: snap.taskCount || 0,
       accountText: snap.account !== null && snap.account.primary !== null ? snap.account.primary.text : '',
+      accountBonusText: snap.account !== null && Array.isArray(snap.account.bonus)
+        ? snap.account.bonus.map(wallet => wallet.text).join(' · ')
+        : '',
+      accountRefreshedAt: snap.account !== null ? snap.account.refreshedAt : 0,
+      sessionTitle: snap.session !== null ? snap.session.title : '',
+      sessionRunning: snap.session !== null && snap.session.running === true,
+      sessionWaiting: snap.session !== null && snap.session.waiting === true,
+      sessionTokens: snap.session !== null && snap.session.tokens !== null
+        ? {
+            uncachedInputTokens: snap.session.tokens.uncachedInputTokens,
+            outputTokens: snap.session.tokens.outputTokens,
+            cacheReadTokens: snap.session.tokens.cacheReadTokens,
+            cacheWriteTokens: snap.session.tokens.cacheWriteTokens,
+          }
+        : null,
+      focusLabel: snap.focus !== null && snap.focus.phase !== 'idle' ? snap.focus.clock : '',
+      petVersion: PET_VERSION,
       tokens: snap.session !== null && snap.session.tokens !== null ? snap.session.tokens.total : 0,
       contextPercent: snap.contextPercent === null ? -1 : snap.contextPercent,
       todayTokens: snap.stats !== null && snap.stats !== undefined ? snap.stats.tokens : 0,

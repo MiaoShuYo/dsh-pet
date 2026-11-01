@@ -1,6 +1,6 @@
 ﻿param(
   [int]$Port = 45873,
-  [switch]$Settings
+  [switch]$StartSettings
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,6 +28,9 @@ $script:Plaque = $null
 $script:LastState = $null
 $script:SettingsWindow = $null
 $script:SettingsControls = @{}
+$script:SettingsStatus = @{}
+$script:SettingsSubtitle = $null
+$script:SettingsVersion = $null
 $script:SuppressSettings = $false
 
 New-Item -ItemType Directory -Force -Path $script:ConfigDir | Out-Null
@@ -220,6 +223,7 @@ function Apply-State($State) {
   if ($null -ne $script:SettingsWindow -and $null -ne $State.prefs) {
     Update-SettingsUI $State.prefs
   }
+  Update-StatusUI $State
   Update-SettingsData $State
   if ([string]$State.state -eq 'working' -or [string]$State.state -eq 'focusing') {
     Start-Bob
@@ -352,10 +356,10 @@ function Build-Window() {
   $script:Plaque = $plaque
 
   $menu = New-Object System.Windows.Controls.ContextMenu
-  $settingsItem = New-Object System.Windows.Controls.MenuItem
-  $settingsItem.Header = '设置…'
-  $settingsItem.Add_Click({ Open-Settings })
-  $menu.Items.Add($settingsItem) | Out-Null
+  $settingsWindowItem = New-Object System.Windows.Controls.MenuItem
+  $settingsWindowItem.Header = '设置…'
+  $settingsWindowItem.Add_Click({ Open-Settings })
+  $menu.Items.Add($settingsWindowItem) | Out-Null
   $openItem = New-Object System.Windows.Controls.MenuItem
   $openItem.Header = '打开 DSH'
   $openItem.Add_Click({ Focus-DSH })
@@ -428,10 +432,16 @@ function Register-Control([string]$Key, $Control, [string]$Kind, $Label = $null)
 function New-TabPanel($Tabs, [string]$Title) {
   $tab = New-Object System.Windows.Controls.TabItem
   $tab.Header = $Title
+  $tab.Background = Brush '#24242A'
+  $tab.Foreground = Brush '#DCE2EC'
+  $tab.BorderBrush = Brush '#34343D'
+  $tab.Padding = '12,5'
   $scroll = New-Object System.Windows.Controls.ScrollViewer
   $scroll.VerticalScrollBarVisibility = 'Auto'
+  $scroll.Background = Brush '#1B1B20'
   $panel = New-Object System.Windows.Controls.StackPanel
   $panel.Margin = '14,12'
+  $panel.Background = Brush '#1B1B20'
   $scroll.Content = $panel
   $tab.Content = $scroll
   $Tabs.Items.Add($tab) | Out-Null
@@ -452,6 +462,7 @@ function Add-CheckSetting($Panel, [string]$Label, [string]$Key, [bool]$Value) {
   $check = New-Object System.Windows.Controls.CheckBox
   $check.Content = $Label
   $check.IsChecked = $Value
+  $check.Foreground = Brush '#E7EBF3'
   $check.Margin = '0,4,0,8'
   $check.Add_Click({ Send-SettingsPatch (Patch-For $Key ([bool]$check.IsChecked)) })
   $Panel.Children.Add($check) | Out-Null
@@ -465,12 +476,16 @@ function Add-TextSetting($Panel, [string]$Label, [string]$Key, [string]$Value, [
   $caption = New-Object System.Windows.Controls.TextBlock
   $caption.Text = $Label
   $caption.Width = 150
+  $caption.Foreground = Brush '#AAB3C2'
   $caption.VerticalAlignment = 'Center'
   $row.Children.Add($caption) | Out-Null
   $box = New-Object System.Windows.Controls.TextBox
   $box.Text = $Value
   $box.Width = 160
   $box.Padding = '4,3'
+  $box.Background = Brush '#2A2A31'
+  $box.Foreground = Brush '#F2F4F8'
+  $box.BorderBrush = Brush '#40404A'
   $box.Add_LostFocus({
     if ($script:SuppressSettings) { return }
     if ($Numeric) {
@@ -490,6 +505,7 @@ function Add-SliderSetting($Panel, [string]$Label, [string]$Key, [double]$Value,
   $row.Margin = '0,3,0,10'
   $caption = New-Object System.Windows.Controls.TextBlock
   $caption.Text = "$Label  $([int]$Value)"
+  $caption.Foreground = Brush '#AAB3C2'
   $caption.Margin = '0,0,0,3'
   $row.Children.Add($caption) | Out-Null
   $slider = New-Object System.Windows.Controls.Slider
@@ -499,6 +515,7 @@ function Add-SliderSetting($Panel, [string]$Label, [string]$Key, [double]$Value,
   $slider.IsSnapToTickEnabled = $true
   $slider.Value = $Value
   $slider.Width = 360
+  $slider.Background = Brush '#34343D'
   $slider.Add_ValueChanged({
     if ($script:SuppressSettings) { return }
     $rounded = [math]::Round($slider.Value)
@@ -518,10 +535,14 @@ function Add-ComboSetting($Panel, [string]$Label, [string]$Key, $Items, $Value) 
   $caption = New-Object System.Windows.Controls.TextBlock
   $caption.Text = $Label
   $caption.Width = 150
+  $caption.Foreground = Brush '#AAB3C2'
   $caption.VerticalAlignment = 'Center'
   $row.Children.Add($caption) | Out-Null
   $combo = New-Object System.Windows.Controls.ComboBox
   $combo.Width = 180
+  $combo.Background = Brush '#2A2A31'
+  $combo.Foreground = Brush '#F2F4F8'
+  $combo.BorderBrush = Brush '#40404A'
   $combo.DisplayMemberPath = 'Label'
   $combo.SelectedValuePath = 'Value'
   $combo.ItemsSource = $Items
@@ -543,23 +564,189 @@ function Add-ActionButton($Panel, [string]$Label, [scriptblock]$OnClick) {
   $button.Padding = '10,5'
   $button.Margin = '0,4,0,8'
   $button.HorizontalAlignment = 'Left'
+  $button.Background = Brush '#2D2D35'
+  $button.Foreground = Brush '#E7EBF3'
+  $button.BorderBrush = Brush '#454552'
   $button.Add_Click($OnClick)
   $Panel.Children.Add($button) | Out-Null
 }
 
+function Add-StatusRow($Panel, [string]$Label, [string]$Key) {
+  $row = New-Object System.Windows.Controls.DockPanel
+  $row.Margin = '0,5,0,5'
+  $caption = New-Object System.Windows.Controls.TextBlock
+  $caption.Text = $Label
+  $caption.Foreground = Brush '#AAB3C2'
+  $caption.VerticalAlignment = 'Center'
+  $value = New-Object System.Windows.Controls.TextBlock
+  $value.Text = '—'
+  $value.Foreground = Brush '#F2F4F8'
+  $value.FontWeight = 'SemiBold'
+  $value.HorizontalAlignment = 'Right'
+  [System.Windows.Controls.DockPanel]::SetDock($value, 'Right')
+  $row.Children.Add($value) | Out-Null
+  $row.Children.Add($caption) | Out-Null
+  $Panel.Children.Add($row) | Out-Null
+  $script:SettingsStatus[$Key] = $value
+}
+
+function Format-Compact([double]$Value) {
+  if ($Value -ge 1000000) { return ('{0:0.#}M' -f ($Value / 1000000)) }
+  if ($Value -ge 1000) { return ('{0:0.#}K' -f ($Value / 1000)) }
+  return ('{0:0}' -f $Value)
+}
+
+function State-Label([string]$State) {
+  switch ($State) {
+    'working' { '工作中' }
+    'waiting' { '等待中' }
+    'focusing' { '专注中' }
+    'happy' { '开心' }
+    'sad' { '难过' }
+    'sleepy' { '困了' }
+    default { '空闲' }
+  }
+}
+
+function Update-StatusUI($State) {
+  if ($null -eq $script:SettingsWindow -or $null -eq $State) { return }
+  try {
+    $script:SettingsStatus['state'].Text = State-Label ([string]$State.state)
+    $script:SettingsStatus['balance'].Text = if ([string]$State.accountText -ne '') { [string]$State.accountText } else { '—' }
+    $script:SettingsStatus['bonus'].Text = if ([string]$State.accountBonusText -ne '') { [string]$State.accountBonusText } else { '—' }
+    $refreshed = [double]$State.accountRefreshedAt
+    $script:SettingsStatus['refreshed'].Text = if ($refreshed -gt 0) { [DateTimeOffset]::FromUnixTimeMilliseconds([int64]$refreshed).LocalDateTime.ToString('HH:mm') } else { '—' }
+    $script:SettingsStatus['session'].Text = if ([string]$State.sessionTitle -ne '') { [string]$State.sessionTitle } else { '无会话' }
+    $script:SettingsStatus['sessionState'].Text = if ($State.sessionRunning -eq $true) { '工作中' } elseif ($State.sessionWaiting -eq $true) { '等待中' } else { '空闲' }
+    $script:SettingsStatus['tokens'].Text = Format-Compact ([double]$State.tokens)
+    $tokens = $State.sessionTokens
+    if ($null -ne $tokens) {
+      $script:SettingsStatus['input'].Text = Format-Compact ([double]$tokens.uncachedInputTokens)
+      $script:SettingsStatus['output'].Text = Format-Compact ([double]$tokens.outputTokens)
+      $script:SettingsStatus['cacheRead'].Text = Format-Compact ([double]$tokens.cacheReadTokens)
+      $script:SettingsStatus['cacheWrite'].Text = Format-Compact ([double]$tokens.cacheWriteTokens)
+    }
+    $script:SettingsStatus['context'].Text = if ([double]$State.contextPercent -ge 0) { ('{0:0}%' -f [double]$State.contextPercent) } else { '—' }
+    if ($null -ne $script:SettingsSubtitle) {
+      $script:SettingsSubtitle.Text = ([string]$State.name) + ' · ' + (State-Label ([string]$State.state))
+    }
+    if ($null -ne $script:SettingsVersion -and [string]$State.petVersion -ne '') {
+      $script:SettingsVersion.Text = 'v' + [string]$State.petVersion
+    }
+  } catch { }
+}
+
 function Build-Settings() {
-  $settings = New-Object System.Windows.Window
-  $settings.Title = 'DSH Pet 设置'
-  $settings.Width = 560
-  $settings.Height = 700
-  $settings.WindowStartupLocation = 'CenterScreen'
-  $settings.ResizeMode = 'NoResize'
-  $settings.Topmost = $true
-  $settings.ShowInTaskbar = $true
+  $settingsWindow = New-Object System.Windows.Window
+  $settingsWindow.Title = '桌宠设置'
+  $settingsWindow.Width = 580
+  $settingsWindow.Height = 760
+  $settingsWindow.WindowStyle = 'None'
+  $settingsWindow.AllowsTransparency = $true
+  $settingsWindow.Background = [System.Windows.Media.Brushes]::Transparent
+  $settingsWindow.WindowStartupLocation = 'CenterScreen'
+  $settingsWindow.ResizeMode = 'NoResize'
+  $settingsWindow.Topmost = $true
+  $settingsWindow.ShowInTaskbar = $false
+
+  $root = New-Object System.Windows.Controls.Border
+  $root.Background = Brush '#1B1B20'
+  $root.BorderBrush = Brush '#34343D'
+  $root.BorderThickness = '1'
+  $root.CornerRadius = 16
+  $grid = New-Object System.Windows.Controls.Grid
+  $rowHeader = New-Object System.Windows.Controls.RowDefinition
+  $rowHeader.Height = [System.Windows.GridLength]::new(74)
+  $rowBody = New-Object System.Windows.Controls.RowDefinition
+  $rowBody.Height = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
+  $rowFooter = New-Object System.Windows.Controls.RowDefinition
+  $rowFooter.Height = [System.Windows.GridLength]::new(40)
+  $grid.RowDefinitions.Add($rowHeader) | Out-Null
+  $grid.RowDefinitions.Add($rowBody) | Out-Null
+  $grid.RowDefinitions.Add($rowFooter) | Out-Null
+  $root.Child = $grid
+  $settingsWindow.Content = $root
+
+  $header = New-Object System.Windows.Controls.Grid
+  $header.Background = Brush '#202026'
+  $header.Margin = '0,0,0,1'
+  $headerTitle = New-Object System.Windows.Controls.TextBlock
+  $headerTitle.Text = '桌宠设置'
+  $headerTitle.FontSize = 18
+  $headerTitle.FontWeight = 'Bold'
+  $headerTitle.Foreground = Brush '#F2F4F8'
+  $headerTitle.Margin = '20,16,0,0'
+  $headerTitle.VerticalAlignment = 'Top'
+  $header.Children.Add($headerTitle) | Out-Null
+  $script:SettingsSubtitle = New-Object System.Windows.Controls.TextBlock
+  $script:SettingsSubtitle.Text = '奶团 · 空闲'
+  $script:SettingsSubtitle.FontSize = 11
+  $script:SettingsSubtitle.Foreground = Brush '#9AA4B2'
+  $script:SettingsSubtitle.Margin = '20,42,0,0'
+  $script:SettingsSubtitle.VerticalAlignment = 'Top'
+  $header.Children.Add($script:SettingsSubtitle) | Out-Null
+  $close = New-Object System.Windows.Controls.Button
+  $close.Content = '×'
+  $close.Width = 28
+  $close.Height = 28
+  $close.HorizontalAlignment = 'Right'
+  $close.VerticalAlignment = 'Top'
+  $close.Margin = '0,14,16,0'
+  $close.Background = [System.Windows.Media.Brushes]::Transparent
+  $close.Foreground = Brush '#9AA4B2'
+  $close.BorderThickness = '0'
+  $close.FontSize = 16
+  $close.Add_Click({ if ($script:SettingsWindow -is [System.Windows.Window]) { $script:SettingsWindow.Close() } })
+  $header.Children.Add($close) | Out-Null
+  $header.Add_MouseLeftButtonDown({ if ($script:SettingsWindow -is [System.Windows.Window]) { try { $script:SettingsWindow.DragMove() } catch { } } })
+  [System.Windows.Controls.Grid]::SetRow($header, 0)
+  $grid.Children.Add($header) | Out-Null
 
   $tabs = New-Object System.Windows.Controls.TabControl
-  $settings.Content = $tabs
+  $tabs.Background = Brush '#1B1B20'
+  $tabs.Foreground = Brush '#DCE2EC'
+  $tabs.BorderThickness = '0'
+  $tabs.Padding = '8,8,8,0'
+  [System.Windows.Controls.Grid]::SetRow($tabs, 1)
+  $grid.Children.Add($tabs) | Out-Null
+
+  $footer = New-Object System.Windows.Controls.DockPanel
+  $footer.Background = Brush '#202026'
+  $footer.Margin = '0,1,0,0'
+  $footerText = New-Object System.Windows.Controls.TextBlock
+  $footerText.Text = '本地运行 · 不收集遥测'
+  $footerText.FontSize = 10
+  $footerText.Foreground = Brush '#7F8796'
+  $footerText.VerticalAlignment = 'Center'
+  $footerText.Margin = '18,0,0,0'
+  $script:SettingsVersion = New-Object System.Windows.Controls.TextBlock
+  $script:SettingsVersion.Text = 'v0.5.0'
+  $script:SettingsVersion.FontSize = 10
+  $script:SettingsVersion.Foreground = Brush '#7F8796'
+  $script:SettingsVersion.VerticalAlignment = 'Center'
+  $script:SettingsVersion.Margin = '0,0,16,0'
+  [System.Windows.Controls.DockPanel]::SetDock($script:SettingsVersion, 'Right')
+  $footer.Children.Add($script:SettingsVersion) | Out-Null
+  $footer.Children.Add($footerText) | Out-Null
+  [System.Windows.Controls.Grid]::SetRow($footer, 2)
+  $grid.Children.Add($footer) | Out-Null
+
   $script:SuppressSettings = $true
+
+  $status = New-TabPanel $tabs '状态'
+  Add-SectionTitle $status '当前状态'
+  Add-StatusRow $status '余额' 'balance'
+  Add-StatusRow $status '赠送' 'bonus'
+  Add-StatusRow $status '上次刷新' 'refreshed'
+  Add-SectionTitle $status '会话'
+  Add-StatusRow $status '会话' 'session'
+  Add-StatusRow $status '状态' 'sessionState'
+  Add-StatusRow $status '本会话' 'tokens'
+  Add-StatusRow $status '未缓存输入' 'input'
+  Add-StatusRow $status '输出' 'output'
+  Add-StatusRow $status '缓存读取' 'cacheRead'
+  Add-StatusRow $status '缓存写入' 'cacheWrite'
+  Add-StatusRow $status '上下文' 'context'
 
   $appearance = New-TabPanel $tabs '外观'
   Add-SectionTitle $appearance '宠物'
@@ -650,8 +837,8 @@ function Build-Settings() {
     } catch { }
   }
 
-  $settings.Add_Closed({ $script:SettingsWindow = $null })
-  $script:SettingsWindow = $settings
+  $settingsWindow.Add_Closed({ $script:SettingsWindow = $null })
+  $script:SettingsWindow = $settingsWindow
   $script:SuppressSettings = $false
 }
 
@@ -696,10 +883,10 @@ function Build-Tray() {
     $script:Tray.Text = 'DSH Pet'
     $script:Tray.Visible = $true
     $menu = New-Object System.Windows.Forms.ContextMenuStrip
-    $settingsItem = New-Object System.Windows.Forms.ToolStripMenuItem
-    $settingsItem.Text = '设置…'
-    $settingsItem.Add_Click({ Open-Settings })
-    $menu.Items.Add($settingsItem) | Out-Null
+    $settingsWindowItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $settingsWindowItem.Text = '设置…'
+    $settingsWindowItem.Add_Click({ Open-Settings })
+    $menu.Items.Add($settingsWindowItem) | Out-Null
     $toggleItem = New-Object System.Windows.Forms.ToolStripMenuItem
     $toggleItem.Text = '显示/隐藏宠物'
     $toggleItem.Add_Click({
@@ -726,7 +913,7 @@ try {
   Build-Window
   Build-Tray
   $script:Window.Add_ContentRendered({
-    if ($Settings) { Open-Settings }
+    if ($StartSettings) { Open-Settings }
   })
   $script:Timer = New-Object System.Windows.Threading.DispatcherTimer
   $script:Timer.Interval = [TimeSpan]::FromMilliseconds(700)

@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-01
+
+### Changed
+
+- Restyled the native settings window to match the dark in-app pet UI: custom
+  header/subtitle, dark tabs and controls, footer with version.
+- Added the **状态** tab: balance, bonus, last refresh, current session, state,
+  token buckets and context.
+- State payload now carries account/session/token details for the status tab.
+- Guarded settings-window close/drag handlers.
+
 ## [0.5.0] - 2026-11-01
 
 ### Changed
