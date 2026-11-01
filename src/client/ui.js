@@ -1130,95 +1130,16 @@ function SettingsPanel(props) {
 }
 
 /**
- * Root overlay entry.
+ * Headless overlay entry. The pet lives in the Windows desktop window; the
+ * Web Client only forwards session status to the store so the native companion
+ * and the desktop bridge stay current. No in-app pet is rendered.
  * @param props - slot props plus the injected pet face.
- * @returns React node.
+ * @returns null.
  */
 export function PetLayer(props) {
-  const snap = props.usePet(selector => selector)
   const statuses = props.useSessionStatus(selector => selector)
-  const [panelOpen, setPanelOpen] = React.useState(false)
-  const [menuOpen, setMenuOpen] = React.useState(false)
-  const anchorRef = React.useRef(null)
-  const panelRef = React.useRef(null)
-
   React.useEffect(() => {
     props.onStatuses(statuses)
   }, [statuses, props.onStatuses])
-
-  React.useEffect(() => {
-    if (!panelOpen && !menuOpen) return undefined
-    const onKey = (event) => {
-      if (event.key === 'Escape') {
-        setPanelOpen(false)
-        setMenuOpen(false)
-      }
-    }
-    const onDown = (event) => {
-      const target = event.target
-      if (panelRef.current !== null && panelRef.current.contains(target)) {
-        if (menuOpen) setMenuOpen(false)
-        return
-      }
-      if (anchorRef.current !== null && anchorRef.current.contains(target)) return
-      setPanelOpen(false)
-      setMenuOpen(false)
-    }
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('pointerdown', onDown, true)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('pointerdown', onDown, true)
-    }
-  }, [panelOpen, menuOpen])
-
-  const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
-  const setPanel = (value) => {
-    if (value === false) {
-      setPanelOpen(false)
-      return
-    }
-    setMenuOpen(false)
-    setPanelOpen(true)
-  }
-  if (!snap.prefs.visible || snap.layout.visible === false) {
-    return mountLayer(uiH(PetHandle, {
-      snap,
-      actions: props,
-      offscreen: snap.layout.visible === false,
-      desktop: snap.desktopWindow === true,
-    }))
-  }
-  return mountLayer(uiH(React.Fragment, null,
-    uiH(PetAnchor, {
-      snap,
-      actions: props,
-      size,
-      anchorRef,
-      menuOpen,
-      setMenuOpen,
-      setPanelOpen: setPanel,
-    }),
-    panelOpen
-      ? uiH(SettingsPanel, {
-        snap,
-        actions: props,
-        size,
-        panelRef,
-        onClose: () => { setPanelOpen(false) },
-      })
-      : null))
-}
-
-/**
- * Mount the overlay at body level so DSH chat cards, side panels and their
- * stacking contexts cannot clip or cover the pet. The in-app window boundary
- * still applies; this only removes DOM-level clipping.
- * @param node - React node.
- * @returns React portal or the node when no body is available.
- */
-function mountLayer(node) {
-  if (typeof createPortal !== 'function') return node
-  if (typeof document === 'undefined' || document.body === null || document.body === undefined) return node
-  return createPortal(node, document.body)
+  return null
 }

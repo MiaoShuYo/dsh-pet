@@ -300,47 +300,7 @@ test('built bundle registers and applies with a fake host', async () => {
   }
   face.demoMode('waiting')
   react.resetHooks()
-  const tree = renderNode(registration.component(props))
-  assert.ok(tree !== null)
-  assert.ok(JSON.stringify(tree).includes('dshp-tasks'))
-  assert.ok(JSON.stringify(tree).includes('创建 V1.6.4 分支'))
-  assert.ok(JSON.stringify(tree).includes('运行单元测试'))
-
-  for (const tab of ['status', 'look', 'alerts', 'focus', 'data']) {
-    react.resetHooks()
-    const tabProps = {
-      ...props,
-      usePet: (selector) => selector(face.hooks.pet.getSnapshot()),
-    }
-    // Force panelOpen=true and the tab index by overriding useState results.
-    const originalUseState = react.React.useState
-    let index = 0
-    react.React.useState = (initial) => {
-      const current = index
-      index += 1
-      if (current === 0) return [true, () => {}]
-      if (current === 3) return [tab, () => {}]
-      return [typeof initial === 'function' ? initial() : initial, () => {}]
-    }
-    const panelTree = renderNode(registration.component(tabProps))
-    assert.ok(panelTree !== null)
-    assert.ok(JSON.stringify(panelTree).includes('dshp-panel'))
-    react.React.useState = originalUseState
-  }
-
-  react.resetHooks()
-  const originalUseState = react.React.useState
-  let menuIndex = 0
-  react.React.useState = (initial) => {
-    const current = menuIndex
-    menuIndex += 1
-    if (current === 0) return [false, () => {}]
-    if (current === 1) return [true, () => {}]
-    return [typeof initial === 'function' ? initial() : initial, () => {}]
-  }
-  const menuTree = renderNode(registration.component(props))
-  assert.ok(JSON.stringify(menuTree).includes('dshp-menu'))
-  react.React.useState = originalUseState
+  assert.equal(registration.component(props), null)
 
   for (const cleanup of env.cleanups.reverse()) {
     try { cleanup() } catch (_error) { /* idempotent */ }

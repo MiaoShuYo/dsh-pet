@@ -1,8 +1,8 @@
 {
   "name": "dsh-pet",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
-  "description": "An in-app desktop pet for DeepSeek Harness with an optional Windows always-on-top window: balance, token usage, context pressure, live tasks, alerts, stats and skins.",
+  "description": "A Windows desktop pet for DeepSeek Harness: always-on-top pet, live tasks, balance/token plaque, native settings and double-click to open DSH.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -21,7 +21,8 @@
     "docs/QA.md",
     "docs/preview.svg",
     "docs/tasks.png",
-    "docs/desktop.png"
+    "docs/desktop.png",
+    "docs/settings.png"
   ],
   "dsh": {
     "bundle": {

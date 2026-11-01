@@ -176,6 +176,8 @@ export class PetStore {
     this.desktopStatus = false
     this.desktopPushTimer = null
     this.desktopPollHandle = null
+    this.desktopSettingsHandle = null
+    this.desktopSettingsRevision = 0
     this.windowHandlers = null
     this.started = false
   }
@@ -204,11 +206,13 @@ export class PetStore {
       }
     this.tickHandle = interval(() => { this.tick() }, 1000)
     this.desktopPollHandle = interval(() => { void this.refreshDesktopStatus() }, 2000)
+    this.desktopSettingsHandle = interval(() => { void this.syncDesktopSettings() }, 1000)
     this.ensureScreenPosition()
     this.startFrameLoop()
     this.bindWindow()
     this.refreshAccount(true)
     void this.refreshDesktopStatus()
+    void this.syncDesktopSettings()
     this.publish()
   }
 
@@ -227,6 +231,10 @@ export class PetStore {
     if (this.desktopPollHandle !== null) {
       try { this.desktopPollHandle() } catch (_error) { /* already gone */ }
       this.desktopPollHandle = null
+    }
+    if (this.desktopSettingsHandle !== null) {
+      try { this.desktopSettingsHandle() } catch (_error) { /* already gone */ }
+      this.desktopSettingsHandle = null
     }
     if (this.desktopPushTimer !== null) {
       clearTimeout(this.desktopPushTimer)
@@ -474,6 +482,9 @@ export class PetStore {
       accountText: snap.account !== null && snap.account.primary !== null ? snap.account.primary.text : '',
       tokens: snap.session !== null && snap.session.tokens !== null ? snap.session.tokens.total : 0,
       contextPercent: snap.contextPercent === null ? -1 : snap.contextPercent,
+      todayTokens: snap.stats !== null && snap.stats !== undefined ? snap.stats.tokens : 0,
+      balanceDelta: snap.stats !== null && snap.stats !== undefined ? snap.stats.balanceDelta : 0,
+      prefs: snap.prefs,
     }
   }
 
@@ -561,6 +572,32 @@ export class PetStore {
         this.publish()
       }
     } catch (_error) { /* host bridge not available (web-only or still booting) */ }
+  }
+
+  /**
+   * Apply settings/actions posted by the native settings window. The host keeps
+   * a revision so repeated polls do not replay an edit.
+   * @returns promise.
+   */
+  async syncDesktopSettings() {
+    if (typeof fetch !== 'function') return
+    try {
+      const response = await fetch(this.desktopUrl('/settings'), { cache: 'no-store' })
+      const result = await response.json()
+      if (result === null || result === undefined) return
+      const revision = Number(result.revision) || 0
+      if (revision <= this.desktopSettingsRevision) return
+      this.desktopSettingsRevision = revision
+      if (result.patch !== null && typeof result.patch === 'object') {
+        this.setPrefs(result.patch)
+      }
+      if (typeof result.action === 'string') {
+        const params = result.params !== null && typeof result.params === 'object' ? result.params : {}
+        if (result.action === 'resetStats') this.resetStats()
+        else if (result.action === 'refresh') void this.refreshAccount(true)
+        else if (result.action === 'demo' && typeof params.kind === 'string') this.demoMode(params.kind)
+      }
+    } catch (_error) { /* host bridge not available */ }
   }
 
   /**

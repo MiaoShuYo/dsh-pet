@@ -388,6 +388,31 @@ test('opening and closing the desktop window hides and restores the in-app pet',
   }
 })
 
+test('desktop settings patches are applied once per revision', async () => {
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = async () => ({
+    json: async () => ({
+      revision: 1,
+      patch: { size: 150, showTasks: false },
+      action: null,
+      params: null,
+    }),
+  })
+  try {
+    const { ctx } = makeContext()
+    const store = new PetStore({ ctx, now: () => 1000 })
+    store.start()
+    await store.syncDesktopSettings()
+    const snap = store.getSnapshot()
+    assert.equal(snap.prefs.size, 150)
+    assert.equal(snap.prefs.showTasks, false)
+    assert.equal(store.desktopSettingsRevision, 1)
+    store.dispose()
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
 test('store keeps its desktop position when the window moves', () => {
   const previousWindow = globalThis.window
   const listeners = new Set()

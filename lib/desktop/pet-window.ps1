@@ -1,5 +1,6 @@
 ﻿param(
-  [int]$Port = 45873
+  [int]$Port = 45873,
+  [switch]$Settings
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +22,13 @@ $script:LastPlaque = ''
 $script:Bob = $null
 $script:Ready = $false
 $script:Scale = 1.0
+$script:ShowTasks = $true
+$script:ShowPlaque = $true
+$script:Plaque = $null
+$script:LastState = $null
+$script:SettingsWindow = $null
+$script:SettingsControls = @{}
+$script:SuppressSettings = $false
 
 New-Item -ItemType Directory -Force -Path $script:ConfigDir | Out-Null
 
@@ -102,6 +110,10 @@ function Add-Text([System.Windows.Controls.Panel]$Parent, [string]$Text, [double
 }
 
 function Update-Tasks($State, [string]$Language) {
+  if (-not $script:ShowTasks) {
+    $script:TaskCard.Visibility = 'Collapsed'
+    return
+  }
   $tasks = @($State.tasks | Where-Object { $null -ne $_ })
   $count = [int]$State.taskCount
   if ($count -lt $tasks.Count) { $count = $tasks.Count }
@@ -164,16 +176,51 @@ function Update-Plaque($State, [string]$Language) {
   $script:PlaqueText.Text = $text
 }
 
+function Apply-Prefs($Prefs) {
+  if ($null -eq $Prefs) { return }
+  try {
+    $size = [double]$Prefs.size
+    if ($size -gt 0) {
+      $script:PetImage.Width = $size * 1.4
+      $script:PetImage.Height = $size * 1.4
+    }
+    $opacity = [double]$Prefs.opacity
+    if ($opacity -ge 0.3 -and $opacity -le 1) { $script:Window.Opacity = $opacity }
+    $previousShowTasks = $script:ShowTasks
+    $script:ShowTasks = $Prefs.showTasks -ne $false
+    if ($script:ShowTasks -and -not $previousShowTasks) { $script:LastTaskKey = '' }
+    $script:ShowPlaque = $Prefs.showPlaque -ne $false
+    if ($null -ne $script:Plaque) {
+      $script:Plaque.Visibility = if ($script:ShowPlaque) { 'Visible' } else { 'Collapsed' }
+    }
+    if (-not $script:ShowTasks) { $script:TaskCard.Visibility = 'Collapsed' }
+  } catch { }
+}
+
+function Update-SettingsData($State) {
+  if ($null -eq $script:SettingsWindow) { return }
+  try {
+    $script:TodayLabel.Text = '今日 token：' + [string]([double]$State.todayTokens)
+    $script:BalanceLabel.Text = '今日余额变化：' + [string]$State.balanceDelta
+  } catch { }
+}
+
 function Apply-State($State) {
   if ($null -eq $State -or $State.ok -ne $true) {
     $script:PlaqueText.Text = 'DSH 未连接'
     return
   }
+  $script:LastState = $State
+  if ($null -ne $State.prefs) { Apply-Prefs $State.prefs }
   $language = [string]$State.language
   if ($language -ne 'en') { $language = 'zh' }
   Set-PetImage ([string]$State.state) ([string]$State.skinId)
   Update-Tasks $State $language
   Update-Plaque $State $language
+  if ($null -ne $script:SettingsWindow -and $null -ne $State.prefs) {
+    Update-SettingsUI $State.prefs
+  }
+  Update-SettingsData $State
   if ([string]$State.state -eq 'working' -or [string]$State.state -eq 'focusing') {
     Start-Bob
   } else {
@@ -302,8 +349,13 @@ function Build-Window() {
   $script:PlaqueText.Text = 'DSH Pet'
   $plaque.Child = $script:PlaqueText
   $stack.Children.Add($plaque) | Out-Null
+  $script:Plaque = $plaque
 
   $menu = New-Object System.Windows.Controls.ContextMenu
+  $settingsItem = New-Object System.Windows.Controls.MenuItem
+  $settingsItem.Header = '设置…'
+  $settingsItem.Add_Click({ Open-Settings })
+  $menu.Items.Add($settingsItem) | Out-Null
   $openItem = New-Object System.Windows.Controls.MenuItem
   $openItem.Header = '打开 DSH'
   $openItem.Add_Click({ Focus-DSH })
@@ -314,23 +366,368 @@ function Build-Window() {
   $menu.Items.Add($resetItem) | Out-Null
   $menu.Items.Add((New-Object System.Windows.Controls.Separator)) | Out-Null
   $closeItem = New-Object System.Windows.Controls.MenuItem
-  $closeItem.Header = '关闭桌面宠物'
-  $closeItem.Add_Click({ $script:Window.Close() })
+  $closeItem.Header = '隐藏到托盘'
+  $closeItem.Add_Click({ $script:Window.Hide() })
   $menu.Items.Add($closeItem) | Out-Null
   $script:Window.ContextMenu = $menu
 
   $script:Window.Add_MouseLeftButtonDown({
+    if ($_.ClickCount -ge 2) {
+      Focus-DSH
+      return
+    }
     if ($_.ButtonState -eq [System.Windows.Input.MouseButtonState]::Pressed) {
       try { $script:Window.DragMove() } catch { }
     }
   })
+  $script:Window.Add_MouseDoubleClick({ Focus-DSH })
   $script:Window.Add_LocationChanged({ Save-Position })
   $script:Window.Add_Closed({ Save-Position })
   $script:Window.Add_ContentRendered({ Initialize-Position })
 }
 
+function Get-PrefValue($Prefs, [string]$Key) {
+  $current = $Prefs
+  foreach ($part in $Key.Split('.')) {
+    if ($null -eq $current) { return $null }
+    $property = $current.PSObject.Properties[$part]
+    if ($null -eq $property) { return $null }
+    $current = $property.Value
+  }
+  return $current
+}
+
+function Patch-For([string]$Key, $Value) {
+  $parts = $Key.Split('.')
+  $inner = @{ $parts[$parts.Count - 1] = $Value }
+  for ($index = $parts.Count - 2; $index -ge 0; $index -= 1) {
+    $inner = @{ $parts[$index] = $inner }
+  }
+  return $inner
+}
+
+function Send-SettingsPatch($Patch) {
+  if ($script:SuppressSettings) { return }
+  try {
+    $body = @{ patch = $Patch } | ConvertTo-Json -Depth 8 -Compress
+    Invoke-RestMethod -Method Post -Uri ('http://127.0.0.1:' + $script:Port + '/settings') -ContentType 'application/json' -Body $body | Out-Null
+  } catch { }
+}
+
+function Send-SettingsAction([string]$Action, $Params = @{}) {
+  try {
+    $body = @{ action = $Action; params = $Params } | ConvertTo-Json -Depth 8 -Compress
+    Invoke-RestMethod -Method Post -Uri ('http://127.0.0.1:' + $script:Port + '/settings') -ContentType 'application/json' -Body $body | Out-Null
+  } catch { }
+}
+
+function Register-Control([string]$Key, $Control, [string]$Kind, $Label = $null) {
+  $script:SettingsControls[$Key] = @{ Control = $Control; Kind = $Kind; Label = $Label }
+}
+
+function New-TabPanel($Tabs, [string]$Title) {
+  $tab = New-Object System.Windows.Controls.TabItem
+  $tab.Header = $Title
+  $scroll = New-Object System.Windows.Controls.ScrollViewer
+  $scroll.VerticalScrollBarVisibility = 'Auto'
+  $panel = New-Object System.Windows.Controls.StackPanel
+  $panel.Margin = '14,12'
+  $scroll.Content = $panel
+  $tab.Content = $scroll
+  $Tabs.Items.Add($tab) | Out-Null
+  return $panel
+}
+
+function Add-SectionTitle($Panel, [string]$Text) {
+  $block = New-Object System.Windows.Controls.TextBlock
+  $block.Text = $Text
+  $block.FontSize = 12
+  $block.FontWeight = 'Bold'
+  $block.Foreground = Brush '#8FB4FF'
+  $block.Margin = '0,8,0,6'
+  $Panel.Children.Add($block) | Out-Null
+}
+
+function Add-CheckSetting($Panel, [string]$Label, [string]$Key, [bool]$Value) {
+  $check = New-Object System.Windows.Controls.CheckBox
+  $check.Content = $Label
+  $check.IsChecked = $Value
+  $check.Margin = '0,4,0,8'
+  $check.Add_Click({ Send-SettingsPatch (Patch-For $Key ([bool]$check.IsChecked)) })
+  $Panel.Children.Add($check) | Out-Null
+  Register-Control $Key $check 'check'
+}
+
+function Add-TextSetting($Panel, [string]$Label, [string]$Key, [string]$Value, [bool]$Numeric = $false) {
+  $row = New-Object System.Windows.Controls.StackPanel
+  $row.Orientation = 'Horizontal'
+  $row.Margin = '0,3,0,8'
+  $caption = New-Object System.Windows.Controls.TextBlock
+  $caption.Text = $Label
+  $caption.Width = 150
+  $caption.VerticalAlignment = 'Center'
+  $row.Children.Add($caption) | Out-Null
+  $box = New-Object System.Windows.Controls.TextBox
+  $box.Text = $Value
+  $box.Width = 160
+  $box.Padding = '4,3'
+  $box.Add_LostFocus({
+    if ($script:SuppressSettings) { return }
+    if ($Numeric) {
+      $number = 0
+      if ([int]::TryParse($box.Text, [ref]$number)) { Send-SettingsPatch (Patch-For $Key $number) }
+    } else {
+      Send-SettingsPatch (Patch-For $Key ([string]$box.Text))
+    }
+  })
+  $row.Children.Add($box) | Out-Null
+  $Panel.Children.Add($row) | Out-Null
+  Register-Control $Key $box 'text'
+}
+
+function Add-SliderSetting($Panel, [string]$Label, [string]$Key, [double]$Value, [double]$Min, [double]$Max, [double]$Step) {
+  $row = New-Object System.Windows.Controls.StackPanel
+  $row.Margin = '0,3,0,10'
+  $caption = New-Object System.Windows.Controls.TextBlock
+  $caption.Text = "$Label  $([int]$Value)"
+  $caption.Margin = '0,0,0,3'
+  $row.Children.Add($caption) | Out-Null
+  $slider = New-Object System.Windows.Controls.Slider
+  $slider.Minimum = $Min
+  $slider.Maximum = $Max
+  $slider.TickFrequency = $Step
+  $slider.IsSnapToTickEnabled = $true
+  $slider.Value = $Value
+  $slider.Width = 360
+  $slider.Add_ValueChanged({
+    if ($script:SuppressSettings) { return }
+    $rounded = [math]::Round($slider.Value)
+    $caption.Text = "$Label  $rounded"
+    if ($Key -eq 'opacity') { Send-SettingsPatch (Patch-For $Key ($rounded / 100)) }
+    else { Send-SettingsPatch (Patch-For $Key $rounded) }
+  })
+  $row.Children.Add($slider) | Out-Null
+  $Panel.Children.Add($row) | Out-Null
+  $script:SettingsControls[$Key] = @{ Control = $slider; Kind = 'slider'; Label = $caption; LabelText = $Label }
+}
+
+function Add-ComboSetting($Panel, [string]$Label, [string]$Key, $Items, $Value) {
+  $row = New-Object System.Windows.Controls.StackPanel
+  $row.Orientation = 'Horizontal'
+  $row.Margin = '0,3,0,8'
+  $caption = New-Object System.Windows.Controls.TextBlock
+  $caption.Text = $Label
+  $caption.Width = 150
+  $caption.VerticalAlignment = 'Center'
+  $row.Children.Add($caption) | Out-Null
+  $combo = New-Object System.Windows.Controls.ComboBox
+  $combo.Width = 180
+  $combo.DisplayMemberPath = 'Label'
+  $combo.SelectedValuePath = 'Value'
+  $combo.ItemsSource = $Items
+  foreach ($item in $Items) {
+    if ([string]$item.Value -eq [string]$Value) { $combo.SelectedItem = $item; break }
+  }
+  $combo.Add_SelectionChanged({
+    if ($script:SuppressSettings) { return }
+    if ($null -ne $combo.SelectedItem) { Send-SettingsPatch (Patch-For $Key ([string]$combo.SelectedItem.Value)) }
+  })
+  $row.Children.Add($combo) | Out-Null
+  $Panel.Children.Add($row) | Out-Null
+  Register-Control $Key $combo 'combo'
+}
+
+function Add-ActionButton($Panel, [string]$Label, [scriptblock]$OnClick) {
+  $button = New-Object System.Windows.Controls.Button
+  $button.Content = $Label
+  $button.Padding = '10,5'
+  $button.Margin = '0,4,0,8'
+  $button.HorizontalAlignment = 'Left'
+  $button.Add_Click($OnClick)
+  $Panel.Children.Add($button) | Out-Null
+}
+
+function Build-Settings() {
+  $settings = New-Object System.Windows.Window
+  $settings.Title = 'DSH Pet 设置'
+  $settings.Width = 560
+  $settings.Height = 700
+  $settings.WindowStartupLocation = 'CenterScreen'
+  $settings.ResizeMode = 'NoResize'
+  $settings.Topmost = $true
+  $settings.ShowInTaskbar = $true
+
+  $tabs = New-Object System.Windows.Controls.TabControl
+  $settings.Content = $tabs
+  $script:SuppressSettings = $true
+
+  $appearance = New-TabPanel $tabs '外观'
+  Add-SectionTitle $appearance '宠物'
+  Add-ComboSetting $appearance '皮肤' 'skinId' @(
+    [pscustomobject]@{ Label = '小黑'; Value = 'kuro' },
+    [pscustomobject]@{ Label = '麻薯'; Value = 'mochi' },
+    [pscustomobject]@{ Label = '像素'; Value = 'pixel' }
+  ) 'kuro'
+  Add-SliderSetting $appearance '大小' 'size' 120 80 200 5
+  Add-SliderSetting $appearance '不透明度' 'opacity' 100 30 100 5
+  Add-CheckSetting $appearance '显示状态牌' 'showPlaque' $true
+  Add-CheckSetting $appearance '显示任务列表' 'showTasks' $true
+  Add-CheckSetting $appearance '随机台词' 'randomLines' $true
+  Add-TextSetting $appearance '名字（留空用皮肤名）' 'petName' ''
+  Add-ComboSetting $appearance '语言' 'language' @(
+    [pscustomobject]@{ Label = '跟随 DSH'; Value = 'auto' },
+    [pscustomobject]@{ Label = '中文'; Value = 'zh' },
+    [pscustomobject]@{ Label = 'English'; Value = 'en' }
+  ) 'auto'
+
+  $alerts = New-TabPanel $tabs '提醒'
+  Add-CheckSetting $alerts '余额不足提醒' 'alerts.lowBalance' $true
+  Add-TextSetting $alerts '低余额阈值' 'alerts.lowBalanceThreshold' '10' $true
+  Add-TextSetting $alerts '币种（auto/CNY/USD）' 'alerts.lowBalanceCurrency' 'auto'
+  Add-CheckSetting $alerts '上下文占用提醒' 'alerts.context' $true
+  Add-TextSetting $alerts '警告阈值（%）' 'alerts.contextWarn' '80' $true
+  Add-TextSetting $alerts '危险阈值（%）' 'alerts.contextDanger' '90' $true
+  Add-CheckSetting $alerts '轮次完成/失败提醒' 'alerts.completion' $true
+  Add-CheckSetting $alerts '后台会话完成提醒' 'alerts.background' $true
+  Add-CheckSetting $alerts '等待审批/回答提醒' 'alerts.waiting' $true
+  Add-CheckSetting $alerts '系统通知' 'alerts.notifications' $false
+  Add-CheckSetting $alerts '提示音' 'alerts.sound' $false
+
+  $focus = New-TabPanel $tabs '专注'
+  Add-CheckSetting $focus '启用番茄钟' 'focus.enabled' $true
+  Add-TextSetting $focus '专注时长（分钟）' 'focus.focusMinutes' '25' $true
+  Add-TextSetting $focus '休息时长（分钟）' 'focus.breakMinutes' '5' $true
+  Add-TextSetting $focus '喝水提醒（分钟，0 关闭）' 'focus.waterMinutes' '45' $true
+  Add-CheckSetting $focus '专注结束后自动休息' 'focus.autoBreak' $true
+
+  $data = New-TabPanel $tabs '数据'
+  Add-CheckSetting $data '记录每日统计' 'stats.enabled' $true
+  $script:TodayLabel = New-Object System.Windows.Controls.TextBlock
+  $script:TodayLabel.Text = '今日 token：0'
+  $script:TodayLabel.Margin = '0,4,0,4'
+  $data.Children.Add($script:TodayLabel) | Out-Null
+  $script:BalanceLabel = New-Object System.Windows.Controls.TextBlock
+  $script:BalanceLabel.Text = '今日余额变化：0'
+  $script:BalanceLabel.Margin = '0,0,0,8'
+  $data.Children.Add($script:BalanceLabel) | Out-Null
+  Add-ActionButton $data '刷新余额' { Send-SettingsAction 'refresh' }
+  Add-ActionButton $data '重置今日统计' { Send-SettingsAction 'resetStats' }
+  Add-SectionTitle $data '演示状态'
+  Add-ActionButton $data '任务执行中' { Send-SettingsAction 'demo' @{ kind = 'tasks' } }
+  Add-ActionButton $data '工作中' { Send-SettingsAction 'demo' @{ kind = 'running' } }
+  Add-ActionButton $data '等待中' { Send-SettingsAction 'demo' @{ kind = 'waiting' } }
+  Add-ActionButton $data '开心' { Send-SettingsAction 'demo' @{ kind = 'happy' } }
+  Add-ActionButton $data '难过' { Send-SettingsAction 'demo' @{ kind = 'sad' } }
+
+  $desktop = New-TabPanel $tabs '桌面'
+  Add-ComboSetting $desktop '余额刷新间隔' 'account.refreshSeconds' @(
+    [pscustomobject]@{ Label = '30 秒'; Value = 30 },
+    [pscustomobject]@{ Label = '60 秒'; Value = 60 },
+    [pscustomobject]@{ Label = '300 秒'; Value = 300 },
+    [pscustomobject]@{ Label = '关闭'; Value = 0 }
+  ) 60
+  Add-ActionButton $desktop '把宠物移回屏幕右下角' { Set-DefaultPosition; Save-Position }
+  Add-ActionButton $desktop '打开 DSH' { Focus-DSH }
+  Add-ActionButton $desktop '导出设置' {
+    try {
+      $dialog = New-Object Microsoft.Win32.SaveFileDialog
+      $dialog.Filter = 'JSON|*.json'
+      $dialog.FileName = 'dsh-pet-settings.json'
+      if ($dialog.ShowDialog() -eq $true -and $null -ne $script:LastState) {
+        $script:LastState.prefs | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $dialog.FileName -Encoding UTF8
+      }
+    } catch { }
+  }
+  Add-ActionButton $desktop '导入设置' {
+    try {
+      $dialog = New-Object Microsoft.Win32.OpenFileDialog
+      $dialog.Filter = 'JSON|*.json'
+      if ($dialog.ShowDialog() -eq $true) {
+        $value = Get-Content -LiteralPath $dialog.FileName -Raw | ConvertFrom-Json
+        Send-SettingsPatch $value
+        if ($null -ne $script:LastState) { Update-SettingsUI $value }
+      }
+    } catch { }
+  }
+
+  $settings.Add_Closed({ $script:SettingsWindow = $null })
+  $script:SettingsWindow = $settings
+  $script:SuppressSettings = $false
+}
+
+function Update-SettingsUI($Prefs) {
+  if ($null -eq $Prefs) { return }
+  $script:SuppressSettings = $true
+  foreach ($key in $script:SettingsControls.Keys) {
+    $entry = $script:SettingsControls[$key]
+    $value = Get-PrefValue $Prefs $key
+    if ($null -eq $value) { continue }
+    if ($entry.Kind -eq 'check') {
+      $entry.Control.IsChecked = [bool]$value
+    } elseif ($entry.Kind -eq 'slider') {
+      $sliderValue = [double]$value
+      if ($key -eq 'opacity') { $sliderValue = $sliderValue * 100 }
+      $entry.Control.Value = $sliderValue
+      if ($null -ne $entry.Label) { $entry.Label.Text = "$($entry.LabelText)  $([int]$sliderValue)" }
+    } elseif ($entry.Kind -eq 'text') {
+      if (-not $entry.Control.IsKeyboardFocusWithin) { $entry.Control.Text = [string]$value }
+    } elseif ($entry.Kind -eq 'combo') {
+      foreach ($item in $entry.Control.ItemsSource) {
+        if ([string]$item.Value -eq [string]$value) { $entry.Control.SelectedItem = $item; break }
+      }
+    }
+  }
+  $script:SuppressSettings = $false
+}
+
+function Open-Settings() {
+  if ($null -eq $script:SettingsWindow) { Build-Settings }
+  if ($null -ne $script:LastState -and $null -ne $script:LastState.prefs) {
+    Update-SettingsUI $script:LastState.prefs
+  }
+  $script:SettingsWindow.Show()
+  $script:SettingsWindow.Activate() | Out-Null
+}
+
+function Build-Tray() {
+  try {
+    $script:Tray = New-Object System.Windows.Forms.NotifyIcon
+    $script:Tray.Icon = [System.Drawing.SystemIcons]::Application
+    $script:Tray.Text = 'DSH Pet'
+    $script:Tray.Visible = $true
+    $menu = New-Object System.Windows.Forms.ContextMenuStrip
+    $settingsItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $settingsItem.Text = '设置…'
+    $settingsItem.Add_Click({ Open-Settings })
+    $menu.Items.Add($settingsItem) | Out-Null
+    $toggleItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $toggleItem.Text = '显示/隐藏宠物'
+    $toggleItem.Add_Click({
+      if ($script:Window.Visibility -eq 'Visible') { $script:Window.Hide() }
+      else { $script:Window.Show(); $script:Window.Activate() | Out-Null }
+    })
+    $menu.Items.Add($toggleItem) | Out-Null
+    $exitItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $exitItem.Text = '退出桌面宠物'
+    $exitItem.Add_Click({
+      $script:Tray.Visible = $false
+      $script:Window.Close()
+    })
+    $menu.Items.Add($exitItem) | Out-Null
+    $script:Tray.ContextMenuStrip = $menu
+    $script:Tray.Add_DoubleClick({ Open-Settings })
+    $script:Window.Add_Closed({
+      try { $script:Tray.Visible = $false; $script:Tray.Dispose() } catch { }
+    })
+  } catch { }
+}
+
 try {
   Build-Window
+  Build-Tray
+  $script:Window.Add_ContentRendered({
+    if ($Settings) { Open-Settings }
+  })
   $script:Timer = New-Object System.Windows.Threading.DispatcherTimer
   $script:Timer.Interval = [TimeSpan]::FromMilliseconds(700)
   $script:Timer.Add_Tick({

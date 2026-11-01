@@ -1,6 +1,6 @@
 # DSH Pet · 桌宠
 
-> 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）Web / 桌面客户端用的桌面宠物（应用内，外加可选的 Windows 独立置顶窗口）：常驻显示**账户余额**、**本会话 token**、**上下文占用**和**正在执行的任务**，并在余额不足、上下文将满、轮次完成/失败、等待审批或回答时提醒你。
+> 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）桌面客户端用的 **Windows 桌面宠物**：宠物只显示在独立的透明置顶窗口里，不占用 DSH 页面；显示账户余额、本会话 token、上下文占用和正在执行的任务。
 
 ![DSH Pet preview](docs/preview.svg)
 
@@ -8,33 +8,30 @@
 
 ![Windows desktop companion](docs/desktop.png)
 
+![Desktop settings](docs/settings.png)
+
 > 仓库地址已指向 **MiaoShuYo/dsh-pet**。如要迁移到别的账号，替换本文件、`package.json`、`site/index.html` 中的 `MiaoShuYo`；CI、Release 包名与 Pages 索引会自动从 `GITHUB_REPOSITORY` 读取真实仓库地址。
 
 ## 功能
 
-- **常驻状态牌**：余额 · 本会话 token · 上下文占用环（绿/橙/红）。点击余额去充值，点击 token 打开面板。
-- **进行中的任务**：宠物上方显示当前会话正在执行的任务——既有后台 job，也有同步工具调用（例如正在运行的 `pwsh`/`bash` 命令）；标题优先取工具的 `description`，其次取命令首行。任务执行时宠物自动切换为抱着笔记本的忙碌姿态，最多展示 3 条。
-- **桌面定位**：位置按**屏幕坐标**保存；移动 DSH 窗口时宠物不会跟着走，而是留在用户放置的桌面位置。
-- **Windows 独立桌面窗口**：外观 → 独立桌面窗口，打开一个独立的透明置顶 WPF 窗口，可拖到 DSH 窗口外；显示宠物、任务卡和余额/token/上下文牌。关闭后应用内宠物自动恢复，设置仍在 DSH 面板。
-- **顶层渲染**：宠物挂载到页面 `body` 顶层并使用最高 z-index，DSH 聊天卡片、侧栏等不会遮住它；但窗口边界仍是硬限制。
-- **余额提醒**：可配置阈值与币种；跌破时气泡 + 表情提醒，30 分钟内不重复，点击直达充值页。
-- **上下文预警**：80% / 90% 两级（可调）；每个会话每一级只提醒一次，压缩后自动重置闩锁。
-- **轮次提醒**：当前会话完成/失败、后台会话完成、等待审批/回答，各有独立气泡与跳转。
-- **本会话与每日统计**：四类 token、系统/工具/消息构成、今日余额变化、最近 7 天；只存本机。
-- **番茄钟 / 喝水**：25/5 专注、45 分钟喝水（可改可关）；基于绝对截止时间，后台不漂移。
-- **可换肤**：三套原创矢量皮肤 + 导入图片皮肤（png/jpeg/webp/gif data URL 或 https）。
-- **系统通知 / 提示音**：默认关闭；页面在后台时可发通知，点击回到对应会话。
-- **交互**：拖动、单击互动、双击/右键打开面板、Esc 关闭、键盘 Enter/Space 互动；隐藏后留下边缘 paw 手柄。
-- **中英双语**，默认跟随 DSH 界面语言。
+- **纯桌面宠物**：DSH 页面里不再渲染任何宠物或设置面板；重启 Host 后自动启动独立置顶窗口。
+- **拖动与双击**：拖动宠物移动窗口；**双击宠物打开/聚焦 DSH**。
+- **任务卡**：当前会话的后台 job 与同步工具调用显示在宠物上方；标题优先取 `description`，其次命令首行。
+- **状态牌**：余额 · 本会话 token · 上下文百分比，数据来自 DSH 既有 projection/Remote。
+- **原生设置窗口**：右键宠物或托盘 → 设置，含外观、提醒、专注、数据、桌面五页；所有常用设置都在桌面端完成。
+- **外观**：三套内置皮肤、大小、不透明度、状态牌/任务列表开关、名字、语言。
+- **提醒 / 专注 / 数据**：低余额与上下文阈值、完成/等待提醒、番茄钟与喝水、每日统计与重置、演示状态。
+- **托盘**：托盘菜单可重新打开设置、显示/隐藏宠物或退出。
+- **中英任务/状态文案**，跟随 DSH 界面语言。
 
 ## 兼容性
 
 | 项 | 范围 |
 |---|---|
 | DSH | `>=0.2.0-rc.2 <0.3.0`（当前验证目标 0.2.1-rc.5） |
-| 客户端 | DSH Web 与内嵌该 Web 客户端的桌面应用 |
+| 客户端 | DSH 桌面应用（Windows）；插件仍通过 Web Client 读取会话数据 |
 | Node（开发） | >= 20，无运行时依赖 |
-| 平台 | 应用内宠物，Windows / macOS / Linux 的 Web 界面均可用 |
+| 平台 | **Windows 10/11**（独立桌面窗口）；macOS / Linux 暂无桌面宠物 |
 
 ## 安装
 
@@ -43,13 +40,13 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.4.0/dsh-pet-0.4.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.5.0/dsh-pet-0.5.0.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.4.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.5.0
 ```
 
 `lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。Windows 独立窗口的 PowerShell helper 与宠物 PNG 已包含在包内，使用系统自带的 Windows PowerShell，不需要另外安装 Electron 或运行时。
@@ -83,14 +80,19 @@ dsh plugin --profile web add ./
 
 ## 使用
 
-- **拖动**：按住宠物拖动；位置以屏幕坐标保存，移动 DSH 窗口不会移动宠物。若窗口移开导致宠物完全不可见，右侧边缘会出现 paw 手柄，点击即可把它带回当前窗口右下角。
-- **单击**：互动台词 + 短暂开心。
-- **双击 / 右键 / 长按**：打开设置面板。
-- **状态牌**：余额（点击充值）· 本会话 token（点击面板）· 上下文环 · `⋯` 快捷菜单（充值/用量/刷新/复制/设置/隐藏）。
-- **任务列表**：当前会话有正在执行的任务时，宠物上方出现任务卡。后台 job 显示 `label`/进度；同步工具调用显示工具 `description`（或命令首行），运行中的命令显示“正在运行命令”。最多列 3 条，其余显示“还有 N 个任务”。可在「外观 → 显示任务列表」关闭。
-- **面板页签**：状态 / 外观 / 提醒 / 专注 / 数据。
-- **隐藏**：外观 → 隐藏桌宠，右侧边缘出现 paw 手柄，点击恢复。
-- **演示状态**：数据 → 演示状态，可模拟任务执行、工作中、等待、低余额、上下文 90%、开心、难过，30 秒后自动结束，适合截图与验收。
+- **启动**：安装并重启 DSH 后，Host 会自动启动桌面宠物；DSH 页面里不会出现宠物。
+- **拖动**：按住宠物拖动；位置保存在本机 `%LOCALAPPDATA%\dsh-pet\window.json`。
+- **双击宠物**：打开/聚焦 DSH 窗口。
+- **右键宠物**：设置、打开 DSH、回到屏幕右下角、隐藏到托盘。
+- **托盘**：打开设置、显示/隐藏宠物、退出桌面宠物。
+- **设置页**：
+  - 外观：皮肤、大小、不透明度、状态牌/任务列表、名字、语言
+  - 提醒：低余额阈值/币种、上下文阈值、完成/后台/等待提醒、通知/提示音
+  - 专注：番茄钟、休息、喝水
+  - 数据：每日统计开关、今日 token/余额变化、重置统计、演示状态
+  - 桌面：余额刷新间隔、复位位置、打开 DSH、导入/导出设置
+- **任务卡**：当前会话有任务时显示，最多 3 条；任务结束自动消失。
+- **隐藏/退出**：右键 → 隐藏到托盘；托盘菜单可退出。
 
 ### 数据来源
 
@@ -150,7 +152,7 @@ dsh plugin --profile web add ./
 ```bash
 npm run build      # 由 src/ 生成 lib/client.js（零依赖迷你打包器）
 npm run check      # manifest / 版本 / 语法 / bundle 新鲜度 / 包装器不变量
-npm test           # node:test：纯函数、store 状态机、bundle 烟测（渲染所有面板页签）
+npm test           # node:test：纯函数、store 状态机、headless bundle 烟测
 ```
 
 目录：
@@ -182,17 +184,17 @@ docs/            skins.md、QA.md、preview.svg
 4. 发布版本：
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 release 工作流会：
 
 - 运行 `build` / `check` / `test`；
-- `npm pack` 并把 `dsh-pet-0.4.0.tgz` 挂到 GitHub Release；
+- `npm pack` 并把 `dsh-pet-0.5.0.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
-> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.4.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.5.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
 
 也可以本地预览市场索引：
 
@@ -205,8 +207,11 @@ npm run market:index
 
 - **仅 DeepSeek Platform 账户**：API-key-only 环境没有可读余额，会显示“账户不可用/未登录”，这是既有能力边界。
 - **上下文占用是近似值**：分子是最近一次请求的 provider 用量（或 surface 预计值），分母是该路由声明的 `contextWindow`；切换模型时两者可能短暂配对不上。这是 DSH token-meter 自身的设计，不是插件另算。
-- **仅应用内 / Windows 独立窗口**：默认仍绘制在 DSH 窗口内部；Windows 可在外观里打开独立置顶窗口，真正把宠物放到 DSH 窗口外。独立窗口是矩形透明窗口，不是逐像素点击穿透，空白区域仍会接收鼠标；macOS/Linux 暂只有应用内模式。
-- **独立窗口需要 Windows PowerShell**：helper 随插件打包，不额外下载；首次打开若失败，可查看 `%LOCALAPPDATA%\\dsh-pet\\last-error.txt`。
+- **仅 Windows 桌面窗口**：按要求不再在 DSH 页面内渲染宠物；macOS / Linux 暂无桌面宠物。
+- **矩形透明窗口**：不是逐像素点击穿透，空白区域仍会接收鼠标；任务卡/状态牌会一起挡住点击。
+- **原生设置**：外观支持三套内置皮肤；自定义图片皮肤导入尚未迁移到原生设置窗口。
+- **提醒/专注设置已迁移**：阈值、番茄钟等设置会写入插件偏好；当前桌面窗口主要展示宠物、任务卡和状态牌，气泡提醒/专注浮层尚未移植到 WPF。
+- **需要 Windows PowerShell**：helper 随插件打包，不额外下载；启动失败可查看 `%LOCALAPPDATA%\\dsh-pet\\last-error.txt`。
 - **DSH 预 1.0**：扩展点仍在演进；`engines.dsh` 锁定 `<0.3.0`，升级 DSH 后请先跑 `docs/QA.md`。
 - 首次安装/升级后必须重启 Host，刷新页面不足以加载新的 Host 插件。
 
@@ -218,27 +223,25 @@ MIT。所有内置宠物形象均为本项目原创矢量图形；不包含任�
 
 ## English
 
-DSH Pet is a desktop pet for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that lives in the Web Client's `shell.overlay` layer, with an optional **Windows always-on-top companion window** for the pet and task card. It shows account balance, per-session token usage, context-window occupancy and live running tasks.
+DSH Pet is a **Windows desktop pet** for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). The host starts a separate transparent, borderless, always-on-top WPF window; the DSH page renders no pet. It shows account balance, per-session token usage, context-window occupancy and live running tasks.
 
 **Highlights**
 
-- Draggable, hideable, keyboard-accessible pet with a compact status plaque and quick menu.
-- Desktop-anchored position: moving the DSH window does not move the pet; if the window moves completely away, a paw handle restores it.
-- Optional **Windows always-on-top desktop window** containing the pet, live task card and compact plaque; it can sit outside DSH. Open/close from **Look → Desktop window**.
-- Live task list from the client job roster **and the session event feed** (running `tool/call` entries), plus a laptop-holding busy pose while work runs.
-- Body-level portal with maximum stacking: DSH chat cards and side panels cannot cover the pet (window bounds still apply).
-- Low-balance, context 80/90%, turn completion/failure, background completion and waiting-for-approval bubbles.
-- Session projections: `tokenUsage`, `contextPressure`, `contextBreakdown`; balance reuses the existing account Remote. No new network calls, no telemetry.
-- Daily stats in `localStorage`, pomodoro/water reminders, optional OS notifications and chimes.
-- Three original vector skins plus validated image-skin import/export (`docs/skins.md`).
-- Chinese/English UI, light/dark theme, reduced-motion support.
+- **Windows desktop pet only**: no in-app overlay; the host auto-starts the companion.
+- Drag to place it anywhere; **double-click the pet to focus/open DSH**.
+- Native settings window (Appearance, Alerts, Focus, Data, Desktop) reached by right-click or the tray icon.
+- Live task card from the client job roster **and the session event feed** (running `tool/call` entries), plus a laptop-holding busy pose while work runs.
+- Balance / token / context plaque from the existing projections and account Remote.
+- Tray menu to reopen settings, show/hide the pet, or exit.
+- Three original vector skins (native settings), working/waiting/happy/sad state images.
+- Chinese/English task/status text; Windows-only.
 
 **Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.4.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.5.0
 # or a release tarball
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.4.0/dsh-pet-0.4.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.5.0/dsh-pet-0.5.0.tgz
 ```
 
 Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.
@@ -251,6 +254,6 @@ npm run build && npm run check && npm test
 
 `lib/client.js` is committed because GitHub installs do not run a build. The Windows companion's PowerShell script and PNG assets are bundled; it uses the system Windows PowerShell, with no Electron or extra runtime install. See `docs/QA.md` for the manual matrix; `src/` is the source of truth, and the build has no dependencies.
 
-**Compatibility** — DSH `>=0.2.0-rc.2 <0.3.0`; balance requires a DeepSeek Platform account. API-key-only setups show the account as unavailable. Context occupancy is the approximate value DSH itself exposes.
+**Compatibility** — Windows 10/11; DSH `>=0.2.0-rc.2 <0.3.0`. Balance requires a DeepSeek Platform account. API-key-only setups show the account as unavailable. Context occupancy is the approximate value DSH itself exposes. macOS/Linux have no desktop pet yet.
 
 **License** — MIT. Built-in pet art is original vector work; no third-party character assets are bundled.

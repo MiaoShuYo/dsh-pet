@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-01
+
+### Changed
+
+- Removed the in-app pet and settings panel entirely; the Web Client slot is
+  now headless and only forwards session status. The pet exists only in the
+  Windows companion window.
+- The host auto-starts the companion; no in-app "open desktop window" switch.
+- Added a native settings window with Appearance, Alerts, Focus, Data and
+  Desktop tabs, backed by a loopback settings/action queue.
+- **Double-click the pet opens/focuses DSH.**
+- Added a tray icon: settings, show/hide the pet, exit.
+- Main window applies size, opacity and plaque/task visibility from settings.
+
 ## [0.4.0] - 2026-11-01
 
 ### Added
