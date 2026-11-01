@@ -5,10 +5,10 @@
  *
  *   window.__ModuleLoader__.load({ id, factory: (require) => exports })
  *
- * This script inlines our ESM sources (only relative imports are supported)
- * into that factory, strips import/export syntax, verifies top-level names are
- * unique, and writes `lib/client.js`. `--check` fails when the committed
- * bundle is stale.
+ * This script inlines our ESM sources (relative imports only; `react-dom` is
+ * kept as an optional loader require) into that factory, strips import/export
+ * syntax, verifies top-level names are unique, and writes `lib/client.js`.
+ * `--check` fails when the committed bundle is stale.
  *
  * Run with: node scripts/build-client.mjs [--check]
  */
@@ -61,7 +61,13 @@ function resolveImport(importer, specifier) {
  */
 function transformModule(file, source) {
   const dependencies = []
-  let text = source.replace(IMPORT_RE, (_match, _bindings, specifier) => {
+  let text = source.replace(IMPORT_RE, (_match, bindings, specifier) => {
+    if (specifier === 'react-dom') {
+      // ReactDOM is provided by the Web Client module loader. Keep the access
+      // optional so a host without it still loads the pet without a portal.
+      return 'const __dshpReactDom = (() => { try { return require("react-dom") } catch (_error) { return null } })();'
+        + `\nconst { ${bindings.trim()} } = __dshpReactDom || {}`
+    }
     dependencies.push(resolveImport(file, specifier))
     return ''
   })

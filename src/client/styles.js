@@ -28,7 +28,7 @@ body[data-ds-dark-theme] .dshp-root {
 }
 .dshp-anchor {
   position: fixed;
-  z-index: 40;
+  z-index: 2147483000;
   pointer-events: none;
 }
 .dshp-pet-wrap {
@@ -335,7 +335,7 @@ body[data-ds-dark-theme] .dshp-root {
 }
 .dshp-panel {
   position: fixed;
-  z-index: 80;
+  z-index: 2147483100;
   display: flex;
   flex-direction: column;
   overflow: hidden;

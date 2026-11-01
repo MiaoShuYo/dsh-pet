@@ -5,6 +5,7 @@
  * so the language preference and the DSH locale both apply.
  * @module dsh-pet/client/ui
  */
+import { createPortal } from 'react-dom'
 import {
   formatCompactNumber, formatMoney, formatPercent, totalTokens,
 } from '../shared/format.js'
@@ -505,7 +506,7 @@ function PetHandle(props) {
     ? Math.max(12, Math.round((viewportHeight - 42) / 2))
     : Math.min(Math.max(12, Math.round(snap.layout.top)), Math.max(12, viewportHeight - 42))
   const style = { right: '0px', top: top + 'px' }
-  return uiH('div', { className: 'dshp-root', style: { position: 'fixed', zIndex: 40, pointerEvents: 'none' } },
+  return uiH('div', { className: 'dshp-root', style: { position: 'fixed', zIndex: 2147483000, pointerEvents: 'none' } },
     uiH('button', {
       type: 'button',
       className: 'dshp-handle',
@@ -1163,9 +1164,9 @@ export function PetLayer(props) {
     setPanelOpen(true)
   }
   if (!snap.prefs.visible || snap.layout.visible === false) {
-    return uiH(PetHandle, { snap, actions: props, offscreen: snap.layout.visible === false })
+    return mountLayer(uiH(PetHandle, { snap, actions: props, offscreen: snap.layout.visible === false }))
   }
-  return uiH(React.Fragment, null,
+  return mountLayer(uiH(React.Fragment, null,
     uiH(PetAnchor, {
       snap,
       actions: props,
@@ -1183,5 +1184,18 @@ export function PetLayer(props) {
         panelRef,
         onClose: () => { setPanelOpen(false) },
       })
-      : null)
+      : null))
+}
+
+/**
+ * Mount the overlay at body level so DSH chat cards, side panels and their
+ * stacking contexts cannot clip or cover the pet. The in-app window boundary
+ * still applies; this only removes DOM-level clipping.
+ * @param node - React node.
+ * @returns React portal or the node when no body is available.
+ */
+function mountLayer(node) {
+  if (typeof createPortal !== 'function') return node
+  if (typeof document === 'undefined' || document.body === null || document.body === undefined) return node
+  return createPortal(node, document.body)
 }

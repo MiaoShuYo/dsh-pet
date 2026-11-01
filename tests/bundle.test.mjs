@@ -259,8 +259,9 @@ test('built bundle registers and applies with a fake host', async () => {
   const spec = env.registered[0]
   assert.equal(spec.id, 'dsh-pet')
   const exports = spec.factory((id) => {
-    assert.equal(id, 'react')
-    return react.React
+    if (id === 'react') return react.React
+    if (id === 'react-dom') return { createPortal: (node) => node }
+    throw new Error(`unexpected module ${id}`)
   })
   assert.equal(typeof exports.apply, 'function')
   assert.equal(exports.inject.join(','), 'slots,timer,locale,sessions,remote')

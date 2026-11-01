@@ -1,6 +1,6 @@
 {
   "name": "dsh-pet",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "An in-app desktop pet for DeepSeek Harness: balance, token usage, context pressure, live tasks, alerts, stats and skins.",
   "type": "module",

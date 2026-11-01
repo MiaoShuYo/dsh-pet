@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-01
+
+### Fixed
+
+- Portal the pet layer to `document.body` and raise its stacking level to the
+  maximum. DSH chat cards, side panels and other in-page stacking contexts can
+  no longer cover or clip the pet. The pet still lives inside the DSH window;
+  window bounds remain the hard limit.
+
 ## [0.3.1] - 2026-11-01
 
 ### Fixed
