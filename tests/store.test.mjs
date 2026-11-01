@@ -352,6 +352,42 @@ test('store demo tasks show the task list without a job stream', () => {
   store.dispose()
 })
 
+test('desktop payload carries the live task list and plaque fields', () => {
+  const { ctx } = makeContext()
+  const store = new PetStore({ ctx, now: () => 1000 })
+  store.start()
+  store.demoMode('tasks')
+  const payload = store.desktopPayload()
+  assert.equal(payload.state, 'working')
+  assert.equal(payload.tasks.length, 2)
+  assert.equal(payload.tasks[0].label, '创建 V1.6.4 分支')
+  assert.equal(payload.taskCount, 2)
+  assert.equal(typeof payload.tokens, 'number')
+  store.dispose()
+})
+
+test('opening and closing the desktop window hides and restores the in-app pet', async () => {
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = async () => ({ json: async () => ({ ok: true, running: true }) })
+  try {
+    const { ctx } = makeContext()
+    const store = new PetStore({ ctx, now: () => 1000 })
+    store.start()
+    await store.openDesktopWindow()
+    let snap = store.getSnapshot()
+    assert.equal(snap.desktopWindow, true)
+    assert.equal(snap.prefs.visible, false)
+
+    await store.closeDesktopWindow()
+    snap = store.getSnapshot()
+    assert.equal(snap.desktopWindow, false)
+    assert.equal(snap.prefs.visible, true)
+    store.dispose()
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
 test('store keeps its desktop position when the window moves', () => {
   const previousWindow = globalThis.window
   const listeners = new Set()

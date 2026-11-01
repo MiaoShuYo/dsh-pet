@@ -35,6 +35,7 @@ restart the Host (Host modules are cached).
 | Overlay | Place the pet over a chat message card or a side panel | Pet stays fully above the DSH content; no clipping by message cards or side panels. Window bounds still clip it. |
 | Drag | Drag the pet around, reload | Position follows the pointer and is saved in screen coordinates; reload restores it; moving the DSH window afterwards leaves the pet at the same desktop spot while that spot is inside the window. |
 | Window move | Place the pet, drag the DSH window several hundred pixels sideways | The pet stays at its desktop coordinate instead of travelling with the window. If the move puts it fully outside, a paw handle appears at the edge; clicking it restores the default corner. |
+| Desktop window | Look → Desktop window on Windows | A transparent always-on-top window appears with the pet, live task card and plaque; drag it outside DSH; closing it (context menu or the paw handle) restores the in-app pet. Check `%LOCALAPPDATA%\\dsh-pet\\last-error.txt` if nothing appears. |
 | Hide/show | Panel → Look → Hide pet | Pet collapses to a paw handle at the edge; clicking restores it. |
 | Panel | Double-click, right-click, click plaque | Panel opens beside the pet, flips at screen edges, closes on Escape/outside click. |
 | Themes | Switch DSH light/dark | Surfaces, text and ring remain readable; no hard-coded white panels in dark mode. |

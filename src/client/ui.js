@@ -511,8 +511,14 @@ function PetHandle(props) {
       type: 'button',
       className: 'dshp-handle',
       style,
-      'aria-label': props.actions.translate('actions.show'),
+      'aria-label': props.desktop === true
+        ? props.actions.translate('look.desktopClose')
+        : props.actions.translate('actions.show'),
       onClick: () => {
+        if (props.desktop === true) {
+          props.actions.closeDesktopWindow()
+          return
+        }
         props.actions.setPrefs({ visible: true })
         if (props.offscreen === true) props.actions.resetPosition()
       },
@@ -751,6 +757,18 @@ function LookTab(props) {
         ],
         onChange: (value) => { actions.setPrefs({ language: value }) },
       }),
+      uiH('div', { className: 'dshp-section' },
+        uiH(UiSectionTitle, null, t('look.desktop')),
+        uiH('div', { className: 'dshp-actions' },
+          uiH('button', {
+            type: 'button',
+            className: 'dshp-btn' + (snap.desktopWindow ? ' primary' : ''),
+            onClick: () => {
+              if (snap.desktopWindow) actions.closeDesktopWindow()
+              else actions.openDesktopWindow()
+            },
+          }, t(snap.desktopWindow ? 'look.desktopClose' : 'look.desktopOpen'))),
+        uiH(UiHint, null, t('look.desktopHint'))),
       uiH('div', { className: 'dshp-actions' },
         uiH('button', {
           type: 'button', className: 'dshp-btn ghost', onClick: () => { actions.resetPosition() },
@@ -1164,7 +1182,12 @@ export function PetLayer(props) {
     setPanelOpen(true)
   }
   if (!snap.prefs.visible || snap.layout.visible === false) {
-    return mountLayer(uiH(PetHandle, { snap, actions: props, offscreen: snap.layout.visible === false }))
+    return mountLayer(uiH(PetHandle, {
+      snap,
+      actions: props,
+      offscreen: snap.layout.visible === false,
+      desktop: snap.desktopWindow === true,
+    }))
   }
   return mountLayer(uiH(React.Fragment, null,
     uiH(PetAnchor, {

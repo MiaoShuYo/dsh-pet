@@ -8,7 +8,7 @@
  *
  * @module dsh-pet/client/store
  */
-import { PET_VERSION, SNAPSHOT_VERSION, STORAGE_KEYS } from '../shared/constants.js'
+import { PET_VERSION, SNAPSHOT_VERSION, STORAGE_KEYS, DESKTOP_BRIDGE_PORT } from '../shared/constants.js'
 import {
   clamp, formatClock, formatCompactNumber, formatMoney, formatPercent, formatTemplate,
   parseAmount, resolveLanguage, totalTokens,
@@ -173,6 +173,9 @@ export class PetStore {
     this.tickHandle = null
     this.frameRaf = null
     this.frame = this.readFrame()
+    this.desktopStatus = false
+    this.desktopPushTimer = null
+    this.desktopPollHandle = null
     this.windowHandlers = null
     this.started = false
   }
@@ -200,10 +203,12 @@ export class PetStore {
         return () => clearInterval(handle)
       }
     this.tickHandle = interval(() => { this.tick() }, 1000)
+    this.desktopPollHandle = interval(() => { void this.refreshDesktopStatus() }, 2000)
     this.ensureScreenPosition()
     this.startFrameLoop()
     this.bindWindow()
     this.refreshAccount(true)
+    void this.refreshDesktopStatus()
     this.publish()
   }
 
@@ -218,6 +223,14 @@ export class PetStore {
     if (this.frameRaf !== null && typeof cancelAnimationFrame === 'function') {
       cancelAnimationFrame(this.frameRaf)
       this.frameRaf = null
+    }
+    if (this.desktopPollHandle !== null) {
+      try { this.desktopPollHandle() } catch (_error) { /* already gone */ }
+      this.desktopPollHandle = null
+    }
+    if (this.desktopPushTimer !== null) {
+      clearTimeout(this.desktopPushTimer)
+      this.desktopPushTimer = null
     }
     if (this.listUnsub !== null) {
       try { this.listUnsub() } catch (_error) { /* already gone */ }
@@ -305,6 +318,7 @@ export class PetStore {
     for (const listener of [...this.listeners]) {
       try { listener() } catch (_error) { /* a broken observer must not stop others */ }
     }
+    this.scheduleDesktopPush()
   }
 
   /* ------------------------------------------------------------------ */
@@ -420,6 +434,144 @@ export class PetStore {
       this.tasks = next
       this.publish()
     }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* optional Windows desktop window                                    */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Loopback URL for the desktop bridge.
+   * @param path - endpoint path.
+   * @returns absolute URL.
+   */
+  desktopUrl(path) {
+    return `http://127.0.0.1:${DESKTOP_BRIDGE_PORT}${path}`
+  }
+
+  /**
+   * Small state payload consumed by the PowerShell/WPF companion.
+   * @returns JSON-serializable snapshot.
+   */
+  desktopPayload() {
+    const snap = this.snapshot === null ? this.buildSnapshot() : this.snapshot
+    const tasks = (snap.tasks || []).slice(0, 5).map(task => ({
+      id: task.id,
+      label: task.label,
+      status: task.status,
+      progress: task.progress,
+      source: task.source,
+      command: task.command === true,
+    }))
+    return {
+      version: 1,
+      state: snap.state,
+      skinId: snap.skin === null || snap.skin === undefined ? 'kuro' : snap.skin.id,
+      language: snap.language,
+      name: snap.name,
+      tasks,
+      taskCount: snap.taskCount || 0,
+      accountText: snap.account !== null && snap.account.primary !== null ? snap.account.primary.text : '',
+      tokens: snap.session !== null && snap.session.tokens !== null ? snap.session.tokens.total : 0,
+      contextPercent: snap.contextPercent === null ? -1 : snap.contextPercent,
+    }
+  }
+
+  /** Coalesce snapshot changes into a modest bridge POST rate. */
+  scheduleDesktopPush() {
+    if (typeof fetch !== 'function' || this.desktopPushTimer !== null) return
+    this.desktopPushTimer = setTimeout(() => {
+      this.desktopPushTimer = null
+      void this.pushDesktopState()
+    }, 350)
+  }
+
+  /** POST the latest state to the host bridge; never surface network errors. */
+  async pushDesktopState() {
+    if (typeof fetch !== 'function') return
+    try {
+      await fetch(this.desktopUrl('/state'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(this.desktopPayload()),
+      })
+    } catch (_error) { /* host bridge may not be running */ }
+  }
+
+  /**
+   * Open the Windows companion window and hide the in-app pet.
+   * @returns promise.
+   */
+  async openDesktopWindow() {
+    if (typeof fetch !== 'function') {
+      this.desktopUnavailable('bubble.desktopUnavailable')
+      return
+    }
+    try {
+      const response = await fetch(this.desktopUrl('/open'), { method: 'POST' })
+      const result = await response.json()
+      if (result === null || result === undefined || result.ok !== true) {
+        const key = result !== null && result !== undefined && result.error === 'windows-only'
+          ? 'bubble.desktopWindowsOnly'
+          : 'bubble.desktopUnavailable'
+        this.desktopUnavailable(key)
+        return
+      }
+      this.desktopStatus = true
+      this.setPrefs({ desktopWindow: true, visible: false })
+      this.pushBubble('completion', 'desktop-open', {}, {
+        ttl: 3000, force: true, keyText: 'bubble.desktopOpened',
+      })
+    } catch (_error) {
+      this.desktopUnavailable('bubble.desktopUnavailable')
+    }
+  }
+
+  /**
+   * Close the Windows companion and restore the in-app pet.
+   * @returns promise.
+   */
+  async closeDesktopWindow() {
+    try {
+      if (typeof fetch === 'function') await fetch(this.desktopUrl('/close'), { method: 'POST' })
+    } catch (_error) { /* the helper may already be gone */ }
+    this.desktopStatus = false
+    this.setPrefs({ desktopWindow: false, visible: true })
+  }
+
+  /**
+   * Sync whether the companion process is alive. A helper closed from its own
+   * context menu restores the in-app pet on the next poll.
+   * @returns promise.
+   */
+  async refreshDesktopStatus() {
+    if (typeof fetch !== 'function') return
+    try {
+      const response = await fetch(this.desktopUrl('/status'), { cache: 'no-store' })
+      const result = await response.json()
+      if (result === null || result === undefined || result.ok !== true) return
+      const running = result.running === true
+      const changed = running !== this.desktopStatus
+      this.desktopStatus = running
+      if (this.prefs.desktopWindow === true && !running) {
+        this.prefs = mergePrefs(this.prefs, { desktopWindow: false, visible: true })
+        saveStoredJson(STORAGE_KEYS.prefs, this.prefs)
+        this.publish()
+      } else if (changed) {
+        this.publish()
+      }
+    } catch (_error) { /* host bridge not available (web-only or still booting) */ }
+  }
+
+  /**
+   * Show a compact error bubble for an unavailable desktop window.
+   * @param keyText - dictionary key.
+   * @returns undefined
+   */
+  desktopUnavailable(keyText) {
+    this.pushBubble('error', 'desktop-open', {}, {
+      ttl: 6000, force: true, keyText,
+    })
   }
 
   /** Recompute the current main session and rewire projection subscriptions. */
@@ -1361,6 +1513,8 @@ export class PetStore {
       demo,
       compact: this.isCompact(),
       layout: this.layoutSnapshot(),
+      desktopWindow: this.prefs.desktopWindow === true,
+      desktopRunning: this.desktopStatus === true,
       updatedAt: now,
     }
   }

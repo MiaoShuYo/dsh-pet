@@ -50,6 +50,8 @@ export function apply(ctx) {
     dismissBubble: (seq) => { store.dismissBubble(seq) },
     openSession: (id) => { store.openSession(id) },
     focusAction: (action) => { store.focusAction(action) },
+    openDesktopWindow: () => { void store.openDesktopWindow() },
+    closeDesktopWindow: () => { void store.closeDesktopWindow() },
     resetPosition: () => { store.resetPosition() },
     markActivity: () => { store.markActivity() },
     translate: (key, params) => store.translate(key, params),

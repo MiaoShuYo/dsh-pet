@@ -1,10 +1,12 @@
 # DSH Pet · 桌宠
 
-> 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）Web / 桌面客户端用的应用内桌面宠物：常驻显示**账户余额**、**本会话 token**、**上下文占用**和**正在执行的任务**，并在余额不足、上下文将满、轮次完成/失败、等待审批或回答时提醒你。
+> 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）Web / 桌面客户端用的桌面宠物（应用内，外加可选的 Windows 独立置顶窗口）：常驻显示**账户余额**、**本会话 token**、**上下文占用**和**正在执行的任务**，并在余额不足、上下文将满、轮次完成/失败、等待审批或回答时提醒你。
 
 ![DSH Pet preview](docs/preview.svg)
 
 ![Live task list and busy pose](docs/tasks.png)
+
+![Windows desktop companion](docs/desktop.png)
 
 > 仓库地址已指向 **MiaoShuYo/dsh-pet**。如要迁移到别的账号，替换本文件、`package.json`、`site/index.html` 中的 `MiaoShuYo`；CI、Release 包名与 Pages 索引会自动从 `GITHUB_REPOSITORY` 读取真实仓库地址。
 
@@ -13,6 +15,7 @@
 - **常驻状态牌**：余额 · 本会话 token · 上下文占用环（绿/橙/红）。点击余额去充值，点击 token 打开面板。
 - **进行中的任务**：宠物上方显示当前会话正在执行的任务——既有后台 job，也有同步工具调用（例如正在运行的 `pwsh`/`bash` 命令）；标题优先取工具的 `description`，其次取命令首行。任务执行时宠物自动切换为抱着笔记本的忙碌姿态，最多展示 3 条。
 - **桌面定位**：位置按**屏幕坐标**保存；移动 DSH 窗口时宠物不会跟着走，而是留在用户放置的桌面位置。
+- **Windows 独立桌面窗口**：外观 → 独立桌面窗口，打开一个独立的透明置顶 WPF 窗口，可拖到 DSH 窗口外；显示宠物、任务卡和余额/token/上下文牌。关闭后应用内宠物自动恢复，设置仍在 DSH 面板。
 - **顶层渲染**：宠物挂载到页面 `body` 顶层并使用最高 z-index，DSH 聊天卡片、侧栏等不会遮住它；但窗口边界仍是硬限制。
 - **余额提醒**：可配置阈值与币种；跌破时气泡 + 表情提醒，30 分钟内不重复，点击直达充值页。
 - **上下文预警**：80% / 90% 两级（可调）；每个会话每一级只提醒一次，压缩后自动重置闩锁。
@@ -40,16 +43,16 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.2/dsh-pet-0.3.2.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.4.0/dsh-pet-0.4.0.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.2
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.4.0
 ```
 
-`lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。
+`lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。Windows 独立窗口的 PowerShell helper 与宠物 PNG 已包含在包内，使用系统自带的 Windows PowerShell，不需要另外安装 Electron 或运行时。
 
 ### 方式 C：插件市场
 
@@ -179,17 +182,17 @@ docs/            skins.md、QA.md、preview.svg
 4. 发布版本：
 
 ```bash
-git tag v0.3.2
-git push origin v0.3.2
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 release 工作流会：
 
 - 运行 `build` / `check` / `test`；
-- `npm pack` 并把 `dsh-pet-0.3.2.tgz` 挂到 GitHub Release；
+- `npm pack` 并把 `dsh-pet-0.4.0.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
-> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.3.2` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.4.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
 
 也可以本地预览市场索引：
 
@@ -202,7 +205,8 @@ npm run market:index
 
 - **仅 DeepSeek Platform 账户**：API-key-only 环境没有可读余额，会显示“账户不可用/未登录”，这是既有能力边界。
 - **上下文占用是近似值**：分子是最近一次请求的 provider 用量（或 surface 预计值），分母是该路由声明的 `contextWindow`；切换模型时两者可能短暂配对不上。这是 DSH token-meter 自身的设计，不是插件另算。
-- **仅应用内**：宠物通过 body portal 渲染并置于最高 z-index，DSH 的聊天卡片/侧栏不会再盖住它；但它仍绘制在 DSH 窗口内部，只是用屏幕坐标抵消窗口移动。窗口完全移开时它无法显示在窗口外，会收起为 paw 手柄；要真正浮在所有应用之上，需要独立的透明置顶窗口（未来可加桌面 helper，数据层已与 UI 解耦）。
+- **仅应用内 / Windows 独立窗口**：默认仍绘制在 DSH 窗口内部；Windows 可在外观里打开独立置顶窗口，真正把宠物放到 DSH 窗口外。独立窗口是矩形透明窗口，不是逐像素点击穿透，空白区域仍会接收鼠标；macOS/Linux 暂只有应用内模式。
+- **独立窗口需要 Windows PowerShell**：helper 随插件打包，不额外下载；首次打开若失败，可查看 `%LOCALAPPDATA%\\dsh-pet\\last-error.txt`。
 - **DSH 预 1.0**：扩展点仍在演进；`engines.dsh` 锁定 `<0.3.0`，升级 DSH 后请先跑 `docs/QA.md`。
 - 首次安装/升级后必须重启 Host，刷新页面不足以加载新的 Host 插件。
 
@@ -214,12 +218,13 @@ MIT。所有内置宠物形象均为本项目原创矢量图形；不包含任�
 
 ## English
 
-DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It lives in the Web Client's `shell.overlay` layer and shows account balance, per-session token usage, context-window occupancy and live running tasks.
+DSH Pet is a desktop pet for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that lives in the Web Client's `shell.overlay` layer, with an optional **Windows always-on-top companion window** for the pet and task card. It shows account balance, per-session token usage, context-window occupancy and live running tasks.
 
 **Highlights**
 
 - Draggable, hideable, keyboard-accessible pet with a compact status plaque and quick menu.
 - Desktop-anchored position: moving the DSH window does not move the pet; if the window moves completely away, a paw handle restores it.
+- Optional **Windows always-on-top desktop window** containing the pet, live task card and compact plaque; it can sit outside DSH. Open/close from **Look → Desktop window**.
 - Live task list from the client job roster **and the session event feed** (running `tool/call` entries), plus a laptop-holding busy pose while work runs.
 - Body-level portal with maximum stacking: DSH chat cards and side panels cannot cover the pet (window bounds still apply).
 - Low-balance, context 80/90%, turn completion/failure, background completion and waiting-for-approval bubbles.
@@ -231,9 +236,9 @@ DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deeps
 **Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.2
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.4.0
 # or a release tarball
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.2/dsh-pet-0.3.2.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.4.0/dsh-pet-0.4.0.tgz
 ```
 
 Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.
@@ -244,7 +249,7 @@ Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market 
 npm run build && npm run check && npm test
 ```
 
-`lib/client.js` is committed because GitHub installs do not run a build. See `docs/QA.md` for the manual matrix; `src/` is the source of truth, and the build has no dependencies.
+`lib/client.js` is committed because GitHub installs do not run a build. The Windows companion's PowerShell script and PNG assets are bundled; it uses the system Windows PowerShell, with no Electron or extra runtime install. See `docs/QA.md` for the manual matrix; `src/` is the source of truth, and the build has no dependencies.
 
 **Compatibility** — DSH `>=0.2.0-rc.2 <0.3.0`; balance requires a DeepSeek Platform account. API-key-only setups show the account as unavailable. Context occupancy is the approximate value DSH itself exposes.
 

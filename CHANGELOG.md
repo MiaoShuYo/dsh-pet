@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-01
+
+### Added
+
+- Optional **Windows desktop companion**: a separate transparent, borderless,
+  always-on-top WPF window that can be dragged anywhere on the desktop,
+  including outside the DSH window. It shows the pet, the live task card and a
+  compact balance/token/context plaque, with a working bounce animation.
+- A loopback bridge in the host half (`127.0.0.1:45873`) carries state from the
+  Web Client to the companion and starts/stops the PowerShell helper.
+- **Look → Desktop window** opens or closes the companion; the in-app pet
+  collapses to a paw handle while the desktop window is active, and returns
+  automatically when the companion closes.
+- Original transparent PNG state assets for the three built-in skins.
+
+### Notes
+
+- The desktop companion is Windows-only. macOS and Linux keep the in-app pet.
+- It is a separate window, not an OS-level click-through overlay; the whole
+  window rectangle captures pointer input.
+
 ## [0.3.2] - 2026-11-01
 
 ### Fixed
