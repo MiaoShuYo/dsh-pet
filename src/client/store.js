@@ -27,12 +27,17 @@ import {
   createFocusState, focusRemaining, pauseFocus, resetFocus, resumeFocus, startFocus, tickFocus,
 } from '../shared/pomodoro.js'
 import { isBubbleExpired, makeBubble, shouldReplaceBubble } from '../shared/bubbles.js'
+import { sameTasks, tasksFromJobs } from '../shared/tasks.js'
 import { en, zh } from './locales.js'
 import {
   copyText, openExternal, playChime, readStorage, sendNotification, writeStorage,
 } from './effects.js'
 
 const IDEA_KEYS = ['bubble.idle1', 'bubble.idle2', 'bubble.idle3', 'bubble.idle4', 'bubble.idle5']
+const DEMO_TASKS = [
+  { id: 'demo-task-1', label: '创建 V1.6.4 分支', status: 'running', progress: '正在运行命令', kind: 'bash', startedAt: 1 },
+  { id: 'demo-task-2', label: '运行单元测试', status: 'running', progress: 'pwsh · 12s', kind: 'bash', startedAt: 2 },
+]
 const TONE_TTL = {
   waiting: 0,
   danger: 15000,
@@ -114,6 +119,10 @@ export class PetStore {
 
     this.accountApi = null
     this.workspace = null
+    this.jobsApi = null
+    this.jobsUnsub = null
+    this.jobRelease = null
+    this.tasks = []
     this.account = {
       phase: 'idle',
       primary: null,
@@ -196,6 +205,7 @@ export class PetStore {
       this.listUnsub = null
     }
     this.unsubscribeSession()
+    this.detachJobs()
     this.unbindWindow()
     this.persistAll()
     this.listeners.clear()
@@ -306,6 +316,85 @@ export class PetStore {
     this.workspace = workspace === undefined ? null : workspace
   }
 
+  /**
+   * Attach the client jobs service. The roster stream starts only while a main
+   * session is selected, and its model subscription is released on detach.
+   * @param jobs - `ctx.jobs` face.
+   * @returns detach callback.
+   */
+  attachJobs(jobs) {
+    this.detachJobs()
+    this.jobsApi = jobs === undefined ? null : jobs
+    const state = this.jobsApi !== null ? this.jobsApi.state || this.jobsApi.model : null
+    if (state !== null && state !== undefined && typeof state.subscribe === 'function') {
+      this.jobsUnsub = state.subscribe(() => { this.syncJobs() })
+    }
+    this.watchJobs(this.currentId)
+    return () => { if (this.jobsApi === jobs) this.detachJobs() }
+  }
+
+  /**
+   * Release the current roster stream and its model subscription.
+   * @returns undefined
+   */
+  detachJobs() {
+    if (this.jobRelease !== null) {
+      try { this.jobRelease() } catch (_error) { /* already gone */ }
+      this.jobRelease = null
+    }
+    if (this.jobsUnsub !== null) {
+      try { this.jobsUnsub() } catch (_error) { /* already gone */ }
+      this.jobsUnsub = null
+    }
+    this.jobsApi = null
+    if (this.tasks.length > 0) {
+      this.tasks = []
+      this.publish()
+    }
+  }
+
+  /**
+   * Watch one session's job roster.
+   * @param id - session identity, or null.
+   * @returns undefined
+   */
+  watchJobs(id) {
+    if (this.jobRelease !== null) {
+      try { this.jobRelease() } catch (_error) { /* already gone */ }
+      this.jobRelease = null
+    }
+    this.tasks = []
+    if (this.jobsApi !== null && id !== null && typeof this.jobsApi.watchRows === 'function') {
+      try {
+        this.jobRelease = this.jobsApi.watchRows(id)
+      } catch (_error) {
+        this.jobRelease = null
+      }
+    }
+    this.syncJobs()
+  }
+
+  /** Re-project the live job rows for the selected session. */
+  syncJobs() {
+    let rows = []
+    if (this.jobsApi !== null && this.currentId !== null) {
+      const state = this.jobsApi.state || this.jobsApi.model
+      const snapshot = state !== null && state !== undefined && typeof state.getSnapshot === 'function'
+        ? state.getSnapshot()
+        : null
+      const bySession = snapshot !== null && snapshot !== undefined ? snapshot.rows : null
+      if (bySession !== null && bySession !== undefined) {
+        const key = String(this.currentId)
+        if (Array.isArray(bySession[key])) rows = bySession[key]
+      }
+    }
+    const next = tasksFromJobs(rows)
+    if (!sameTasks(this.tasks, next)) {
+      this.tasks = next
+      this.publish()
+    }
+  }
+
   /** Recompute the current main session and rewire projection subscriptions. */
   syncSession() {
     const sessions = this.ctx.sessions
@@ -322,6 +411,7 @@ export class PetStore {
       this.projections = { tokenUsage: null, contextPressure: null, contextBreakdown: null }
       this.liveKeys.clear()
       if (id !== null) this.subscribeSession(id)
+      this.watchJobs(id)
     } else if (id !== null && this.sessionUnsubs.length === 0) {
       // A retained generation may appear after the list row did; retry once the
       // binding exists so live projections replace the summary fallback.
@@ -1156,6 +1246,8 @@ export class PetStore {
       },
       focus,
       bubble: this.bubble,
+      tasks: demo === 'tasks' ? DEMO_TASKS : this.prefs.showTasks ? this.tasks : [],
+      taskCount: demo === 'tasks' ? DEMO_TASKS.length : this.tasks.length,
       contextPercent,
       contextTone: contextTone(contextPercent, this.prefs.alerts.contextWarn, this.prefs.alerts.contextDanger),
       lowBalance: this.isLowBalance(account),
@@ -1253,8 +1345,10 @@ export class PetStore {
     if (demo === 'happy') return 'happy'
     if (demo === 'sad') return 'sad'
     if (demo === 'running') return 'working'
+    if (demo === 'tasks') return 'working'
     if (demo === 'waiting') return 'waiting'
     if (session !== null && session.waiting) return 'waiting'
+    if (this.tasks.length > 0) return 'working'
     if (focus.phase === 'focus') return 'focusing'
     if (session !== null && session.running) return 'working'
     if (now < this.sadUntil) return 'sad'

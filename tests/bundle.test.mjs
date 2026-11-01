@@ -166,6 +166,24 @@ function createContext(sandbox) {
       },
     }),
   }
+  const jobRows = {
+    s1: [{
+      id: 'job-1',
+      kind: 'bash',
+      label: '创建 V1.6.4 分支',
+      status: 'running',
+      progress: '正在运行命令',
+      startedAt: 1,
+    }],
+  }
+  const jobs = {
+    state: {
+      getSnapshot: () => ({ rows: jobRows, observed: {} }),
+      subscribe: () => () => {},
+    },
+    watchRows: () => () => {},
+    kill: async () => ({ ok: true }),
+  }
   const cleanups = []
   const effects = []
   return {
@@ -199,6 +217,7 @@ function createContext(sandbox) {
         const scope = {
           ...(names.includes('remote.account') ? { remote: { account } } : {}),
           ...(names.includes('uiWorkspace') ? { uiWorkspace: { openSession: async () => {} } } : {}),
+          ...(names.includes('jobs') ? { jobs } : {}),
           effect: (fn) => {
             const disposer = fn()
             if (typeof disposer === 'function') cleanups.push(disposer)
@@ -251,6 +270,9 @@ test('built bundle registers and applies with a fake host', async () => {
   assert.equal(snap.account.phase, 'ready')
   assert.equal(snap.account.primary.amount, 88.5)
   assert.equal(snap.lowBalance, false)
+  assert.equal(snap.tasks.length, 1)
+  assert.equal(snap.tasks[0].label, '创建 V1.6.4 分支')
+  assert.equal(snap.state, 'working')
   assert.equal(face.translate('state.working'), 'working')
 
   const props = {
@@ -263,6 +285,8 @@ test('built bundle registers and applies with a fake host', async () => {
   react.resetHooks()
   const tree = renderNode(registration.component(props))
   assert.ok(tree !== null)
+  assert.ok(JSON.stringify(tree).includes('dshp-tasks'))
+  assert.ok(JSON.stringify(tree).includes('创建 V1.6.4 分支'))
 
   for (const tab of ['status', 'look', 'alerts', 'focus', 'data']) {
     react.resetHooks()

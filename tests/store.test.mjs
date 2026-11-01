@@ -208,3 +208,78 @@ test('tick rolls the stats day and keeps the pet responsive', () => {
   assert.deepEqual(store.getSnapshot().stats.tokens, createBuckets())
   store.dispose()
 })
+
+function makeJobs(initialRows) {
+  let rows = initialRows
+  let watchedId = null
+  let released = false
+  const listeners = new Set()
+  return {
+    state: {
+      getSnapshot: () => ({ rows, observed: {} }),
+      subscribe: (listener) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+    },
+    watchRows(id) {
+      watchedId = id
+      return () => { released = true }
+    },
+    set(next) {
+      rows = next
+      for (const listener of [...listeners]) listener()
+    },
+    watched: () => watchedId,
+    released: () => released,
+  }
+}
+
+test('store projects running jobs into tasks and the busy state', () => {
+  const { ctx } = makeContext()
+  const store = new PetStore({ ctx, now: () => 1000 })
+  store.start()
+  const jobs = makeJobs({
+    s1: [
+      { id: 'job-1', kind: 'bash', label: '创建 V1.6.4 分支', status: 'running', progress: '正在运行命令', startedAt: 10 },
+      { id: 'job-2', kind: 'bash', label: '完成', status: 'completed', startedAt: 20 },
+    ],
+  })
+  store.attachJobs(jobs)
+  assert.equal(jobs.watched(), 's1')
+  let snap = store.getSnapshot()
+  assert.equal(snap.tasks.length, 1)
+  assert.equal(snap.tasks[0].label, '创建 V1.6.4 分支')
+  assert.equal(snap.tasks[0].progress, '正在运行命令')
+  assert.equal(snap.state, 'working')
+
+  jobs.set({ s1: [{ id: 'job-1', kind: 'bash', label: '创建 V1.6.4 分支', status: 'stopping', progress: '', startedAt: 10 }] })
+  snap = store.getSnapshot()
+  assert.equal(snap.tasks[0].status, 'stopping')
+  assert.equal(snap.state, 'working')
+
+  jobs.set({ s1: [] })
+  snap = store.getSnapshot()
+  assert.equal(snap.tasks.length, 0)
+  assert.equal(snap.state, 'idle')
+
+  jobs.set({ s1: [{ id: 'job-3', kind: 'bash', label: 'Task', status: 'running', progress: '', startedAt: 30 }] })
+  store.setPrefs({ showTasks: false })
+  snap = store.getSnapshot()
+  assert.equal(snap.tasks.length, 0)
+  assert.equal(snap.state, 'working')
+
+  store.dispose()
+  assert.equal(jobs.released(), true)
+})
+
+test('store demo tasks show the task list without a job stream', () => {
+  const { ctx } = makeContext()
+  const store = new PetStore({ ctx, now: () => 1000 })
+  store.start()
+  store.demoMode('tasks')
+  const snap = store.getSnapshot()
+  assert.equal(snap.tasks.length, 2)
+  assert.equal(snap.state, 'working')
+  store.dispose()
+})

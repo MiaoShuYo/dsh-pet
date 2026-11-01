@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-01
+
+### Added
+
+- Live task list above the pet: watches the current session's `ctx.jobs`
+  roster and shows running/stopping jobs with their progress line.
+- Busy mascot pose: a small laptop, `^^` eyes, a bouncing work animation and a
+  blinking terminal prompt; the pet switches to it whenever a task is running.
+- Demo state **Tasks running** and a **Show task list** appearance toggle.
+- Verified against DSH 0.2.1-rc.5.
+
 ## [0.1.0] - 2026-10-30
 
 ### Added

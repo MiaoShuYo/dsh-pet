@@ -13,7 +13,7 @@ const mascotH = React.createElement
  * @returns SVG child nodes.
  */
 function mascotEyes(palette, state) {
-  if (state === 'happy') {
+  if (state === 'happy' || state === 'working' || state === 'focusing') {
     return [
       mascotH('path', {
         key: 'eye-l',
@@ -77,10 +77,9 @@ function mascotEyes(palette, state) {
       }),
     ]
   }
-  const wide = state === 'working' || state === 'focusing'
   const tall = state === 'waiting'
-  const rx = wide ? 4.4 : tall ? 4.2 : 4
-  const ry = wide ? 5.4 : tall ? 6 : 5
+  const rx = tall ? 4.2 : 4
+  const ry = tall ? 6 : 5
   return [
     mascotH('ellipse', {
       key: 'eye-l', cx: 50, cy: 46, rx, ry, fill: palette.pupil,
@@ -134,6 +133,49 @@ function mascotMouth(palette, state) {
     strokeWidth: 2.2,
     strokeLinecap: 'round',
   })
+}
+
+/**
+ * A little laptop for the busy pose.
+ * @param palette - skin palette.
+ * @returns SVG group.
+ */
+function mascotLaptop(palette) {
+  return mascotH('g', { key: 'laptop', className: 'dshp-laptop' },
+    mascotH('path', {
+      d: 'M37 91 L83 91 L89 108 L31 108 Z',
+      fill: palette.furDark,
+      opacity: 0.96,
+    }),
+    mascotH('rect', {
+      x: 45,
+      y: 73,
+      width: 30,
+      height: 22,
+      rx: 3,
+      fill: '#0c1220',
+      stroke: palette.accent,
+      strokeWidth: 1.6,
+    }),
+    mascotH('path', {
+      className: 'dshp-screen-prompt',
+      d: 'M51 80 L55 84 L51 88',
+      fill: 'none',
+      stroke: palette.eye,
+      strokeWidth: 1.8,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    }),
+    mascotH('line', {
+      x1: 60,
+      y1: 84,
+      x2: 70,
+      y2: 84,
+      stroke: palette.eye,
+      strokeWidth: 1.6,
+      strokeLinecap: 'round',
+      opacity: 0.55,
+    }))
 }
 
 /**
@@ -275,5 +317,6 @@ export function Mascot(props) {
   mascotH('ellipse', { cx: 41, cy: 56, rx: 5, ry: 3, fill: palette.blush, opacity: 0.55 }),
   mascotH('ellipse', { cx: 79, cy: 56, rx: 5, ry: 3, fill: palette.blush, opacity: 0.55 }),
   mascotAccessory(skin, palette),
+  state === 'working' || state === 'focusing' ? mascotLaptop(palette) : null,
   mascotDecoration(palette, state))
 }

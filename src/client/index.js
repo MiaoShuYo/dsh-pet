@@ -63,6 +63,10 @@ export function apply(ctx) {
     const detach = store.attachAccount(scope.remote.account)
     scope.effect(() => () => { detach() }, 'dsh-pet: account')
   })
+  ctx.inject(['jobs'], (scope) => {
+    const detach = store.attachJobs(scope.jobs)
+    scope.effect(() => () => { detach() }, 'dsh-pet: jobs')
+  })
   ctx.inject(['uiWorkspace'], (scope) => {
     store.attachWorkspace(scope.uiWorkspace)
     scope.effect(() => () => { store.attachWorkspace(null) }, 'dsh-pet: workspace')

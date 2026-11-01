@@ -72,6 +72,10 @@ body[data-ds-dark-theme] .dshp-root {
 .dshp-pet[data-state="sad"] .dshp-mascot { animation: dshp-droop 2.4s ease-in-out infinite; }
 .dshp-pet[data-state="sleepy"] .dshp-mascot { animation: dshp-breathe 4s ease-in-out infinite; }
 .dshp-pet[data-state="focusing"] .dshp-mascot { animation: dshp-focus 2s ease-in-out infinite; }
+.dshp-pet[data-state="working"] .dshp-laptop,
+.dshp-pet[data-state="focusing"] .dshp-laptop { animation: dshp-laptop 1.2s ease-in-out infinite; transform-origin: 60px 96px; }
+.dshp-pet[data-state="working"] .dshp-screen-prompt,
+.dshp-pet[data-state="focusing"] .dshp-screen-prompt { animation: dshp-screen-blink 1.6s steps(2, end) infinite; }
 .dshp-pet:hover .dshp-mascot { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.24)); }
 .dshp-tail { animation: dshp-tail 2.2s ease-in-out infinite; }
 .dshp-sparkles { animation: dshp-sparkle 1.2s ease-in-out infinite; }
@@ -124,10 +128,22 @@ body[data-ds-dark-theme] .dshp-root {
   cursor: pointer;
 }
 .dshp-more:hover, .dshp-more[aria-expanded="true"] { background: var(--dshp-bg2); color: var(--dshp-fg); }
-.dshp-menu {
+.dshp-floaters {
   position: absolute;
   right: 0;
   bottom: calc(100% + 10px);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+.dshp-floaters > * { pointer-events: auto; }
+.dshp-menu {
+  position: relative;
+  right: auto;
+  bottom: auto;
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -193,9 +209,9 @@ body[data-ds-dark-theme] .dshp-root {
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
 }
 .dshp-bubble {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 12px);
+  position: relative;
+  right: auto;
+  bottom: auto;
   max-width: min(260px, 72vw);
   padding: 9px 30px 9px 12px;
   border-radius: 14px;
@@ -240,6 +256,81 @@ body[data-ds-dark-theme] .dshp-root {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+.dshp-tasks {
+  min-width: 190px;
+  max-width: 280px;
+  padding: 8px 10px 9px;
+  border: 1px solid var(--dshp-border);
+  border-radius: 12px;
+  background: var(--dshp-bg);
+  color: var(--dshp-fg);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.3);
+  pointer-events: auto;
+  animation: dshp-pop 0.16s ease-out;
+}
+.dshp-tasks-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  color: var(--dshp-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dshp-tasks-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--dshp-accent);
+  box-shadow: 0 0 0 3px rgba(109, 168, 255, 0.16);
+  animation: dshp-pulse 1.4s ease-in-out infinite;
+}
+.dshp-tasks-count {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--dshp-bg2);
+  color: var(--dshp-fg);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.dshp-task {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 5px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border-left: 2px solid var(--dshp-accent);
+  background: var(--dshp-bg2);
+}
+.dshp-task[data-status="stopping"] { border-left-color: var(--dshp-warn); }
+.dshp-task-label {
+  overflow: hidden;
+  color: var(--dshp-fg);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dshp-task-status {
+  overflow: hidden;
+  color: var(--dshp-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dshp-task-more {
+  margin-top: 6px;
+  color: var(--dshp-muted);
+  font-size: 10px;
+  text-align: right;
 }
 .dshp-panel {
   position: fixed;
@@ -522,6 +613,14 @@ body[data-ds-dark-theme] .dshp-root {
 @keyframes dshp-focus {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2px); }
+}
+@keyframes dshp-laptop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+@keyframes dshp-screen-blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0.35; }
 }
 @keyframes dshp-tail {
   0%, 100% { transform: rotate(0deg); }

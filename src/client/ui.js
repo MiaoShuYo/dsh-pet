@@ -307,6 +307,40 @@ function PetBubble(props) {
 }
 
 /**
+ * Render the live task roster above the pet.
+ * @param props - tasks and actions.
+ * @returns React node.
+ */
+function PetTasks(props) {
+  const tasks = props.tasks
+  const actions = props.actions
+  const t = actions.translate
+  const visible = tasks.slice(0, 3)
+  return uiH('div', {
+    className: 'dshp-tasks',
+    role: 'status',
+    'aria-live': 'polite',
+    'aria-label': t('tasks.title'),
+  },
+  uiH('div', { className: 'dshp-tasks-head' },
+    uiH('span', { className: 'dshp-tasks-dot', 'aria-hidden': 'true' }),
+    uiH('span', null, t('tasks.title')),
+    uiH('span', { className: 'dshp-tasks-count' }, String(tasks.length))),
+  visible.map(task => uiH('div', {
+    key: task.id,
+    className: 'dshp-task',
+    'data-status': task.status,
+    title: task.label,
+  },
+  uiH('span', { className: 'dshp-task-label' }, task.label),
+  uiH('span', { className: 'dshp-task-status' },
+    task.status === 'stopping' ? t('tasks.stopping') : task.progress !== '' ? task.progress : t('tasks.running')))),
+  tasks.length > visible.length
+    ? uiH('div', { className: 'dshp-task-more' }, t('tasks.more', { count: tasks.length - visible.length }))
+    : null)
+}
+
+/**
  * Render the draggable pet and its plaque.
  * @param props - snapshot, size, actions, refs and handlers.
  * @returns React node.
@@ -401,15 +435,19 @@ function PetAnchor(props) {
     opacity: snap.prefs.opacity,
   }
   return uiH('div', { className: 'dshp-root dshp-anchor', style, ref: props.anchorRef },
-    snap.bubble === null ? null : uiH(PetBubble, { bubble: snap.bubble, actions }),
-    props.menuOpen === true
-      ? uiH(PetMenu, {
-        snap,
-        actions,
-        onClose: () => { props.setMenuOpen(false) },
-        onSettings: () => { props.setMenuOpen(false); props.setPanelOpen(true) },
-      })
-      : null,
+    uiH('div', { className: 'dshp-floaters' },
+      props.menuOpen === true
+        ? uiH(PetMenu, {
+          snap,
+          actions,
+          onClose: () => { props.setMenuOpen(false) },
+          onSettings: () => { props.setMenuOpen(false); props.setPanelOpen(true) },
+        })
+        : null,
+      snap.bubble === null ? null : uiH(PetBubble, { bubble: snap.bubble, actions }),
+      snap.tasks !== undefined && snap.tasks.length > 0
+        ? uiH(PetTasks, { tasks: snap.tasks, actions })
+        : null),
     uiH('div', { className: 'dshp-pet-wrap' },
       uiH('button', {
         type: 'button',
@@ -681,6 +719,11 @@ function LookTab(props) {
         onChange: (value) => { actions.setPrefs({ showPlaque: value }) },
       }),
       uiH(UiToggle, {
+        label: t('look.tasks'),
+        checked: snap.prefs.showTasks,
+        onChange: (value) => { actions.setPrefs({ showTasks: value }) },
+      }),
+      uiH(UiToggle, {
         label: t('look.random'),
         checked: snap.prefs.randomLines,
         onChange: (value) => { actions.setPrefs({ randomLines: value }) },
@@ -913,6 +956,7 @@ function DataTab(props) {
     }
   }
   const demoKinds = [
+    ['tasks', 'demo.tasks'],
     ['running', 'demo.running'],
     ['waiting', 'demo.waiting'],
     ['lowBalance', 'demo.lowBalance'],
