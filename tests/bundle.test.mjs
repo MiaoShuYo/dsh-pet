@@ -184,6 +184,20 @@ function createContext(sandbox) {
     watchRows: () => () => {},
     kill: async () => ({ ok: true }),
   }
+  const toolCall = {
+    type: 'tool/call',
+    seq: 4,
+    time: 200,
+    data: {
+      callId: 'call-bundle',
+      name: 'pwsh',
+      arguments: JSON.stringify({ description: '运行单元测试', command: 'npm test' }),
+    },
+  }
+  const eventSource = {
+    getSnapshot: () => ({ entries: [{ event: toolCall }], hasMore: false, change: { kind: 'replace', entries: [] } }),
+    subscribe: () => () => {},
+  }
   const cleanups = []
   const effects = []
   return {
@@ -200,6 +214,7 @@ function createContext(sandbox) {
             projections: { faceOf: (key) => facials[key] },
             getSnapshot: () => ({ lastAgentError: null }),
           },
+          eventSource,
         }),
       },
       locale: {
@@ -270,8 +285,9 @@ test('built bundle registers and applies with a fake host', async () => {
   assert.equal(snap.account.phase, 'ready')
   assert.equal(snap.account.primary.amount, 88.5)
   assert.equal(snap.lowBalance, false)
-  assert.equal(snap.tasks.length, 1)
+  assert.equal(snap.tasks.length, 2)
   assert.equal(snap.tasks[0].label, '创建 V1.6.4 分支')
+  assert.equal(snap.tasks.find(task => task.source === 'tool').label, '运行单元测试')
   assert.equal(snap.state, 'working')
   assert.equal(face.translate('state.working'), 'working')
 
@@ -287,6 +303,7 @@ test('built bundle registers and applies with a fake host', async () => {
   assert.ok(tree !== null)
   assert.ok(JSON.stringify(tree).includes('dshp-tasks'))
   assert.ok(JSON.stringify(tree).includes('创建 V1.6.4 分支'))
+  assert.ok(JSON.stringify(tree).includes('运行单元测试'))
 
   for (const tab of ['status', 'look', 'alerts', 'focus', 'data']) {
     react.resetHooks()

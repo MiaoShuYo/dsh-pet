@@ -330,11 +330,16 @@ function PetTasks(props) {
     key: task.id,
     className: 'dshp-task',
     'data-status': task.status,
+    'data-source': task.source,
     title: task.label,
   },
   uiH('span', { className: 'dshp-task-label' }, task.label),
   uiH('span', { className: 'dshp-task-status' },
-    task.status === 'stopping' ? t('tasks.stopping') : task.progress !== '' ? task.progress : t('tasks.running')))),
+    task.status === 'stopping'
+      ? t('tasks.stopping')
+      : task.progress !== ''
+        ? task.progress
+        : task.command === true ? t('tasks.command') : t('tasks.running')))),
   tasks.length > visible.length
     ? uiH('div', { className: 'dshp-task-more' }, t('tasks.more', { count: tasks.length - visible.length }))
     : null)

@@ -235,6 +235,74 @@ function makeJobs(initialRows) {
   }
 }
 
+function makeEventSource(initialEntries) {
+  let entries = [...initialEntries]
+  let change = { kind: 'replace', entries }
+  const listeners = new Set()
+  return {
+    getSnapshot: () => ({ entries, hasMore: false, revision: 0, change }),
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    append(entry) {
+      entries = [...entries, entry]
+      change = { kind: 'append', entries: [entry] }
+      for (const listener of [...listeners]) listener()
+    },
+    listeners: () => listeners.size,
+  }
+}
+
+test('store shows synchronous tool calls and removes them when they finish', () => {
+  const { ctx } = makeContext()
+  const call = {
+    type: 'tool/call',
+    seq: 10,
+    time: 1000,
+    data: {
+      callId: 'call-1',
+      name: 'pwsh',
+      arguments: JSON.stringify({ description: '创建 V1.6.4 分支', command: 'git switch -c v1.6.4' }),
+    },
+  }
+  const result = {
+    type: 'tool/result',
+    seq: 11,
+    time: 1100,
+    data: { message: { source: { kind: 'tool', callId: 'call-1' } } },
+  }
+  const source = makeEventSource([call])
+  const binding = ctx.sessions.binding
+  ctx.sessions.binding = id => ({ ...binding(id), eventSource: source })
+  const store = new PetStore({ ctx, now: () => 1000 })
+  store.start()
+  let snap = store.getSnapshot()
+  assert.equal(snap.tasks.length, 1)
+  assert.equal(snap.tasks[0].source, 'tool')
+  assert.equal(snap.tasks[0].label, '创建 V1.6.4 分支')
+  assert.equal(snap.tasks[0].command, true)
+  assert.equal(snap.state, 'working')
+
+  source.append(result)
+  snap = store.getSnapshot()
+  assert.equal(snap.tasks.length, 0)
+  assert.equal(snap.state, 'idle')
+
+  source.append({
+    type: 'tool/call',
+    seq: 12,
+    time: 1200,
+    data: { callId: 'call-2', name: 'bash', arguments: '{"command":"npm test"}' },
+  })
+  assert.equal(store.getSnapshot().tasks[0].label, 'npm test')
+  source.append({ type: 'turn/end', seq: 13, time: 1300, data: { reason: { kind: 'done' } } })
+  assert.equal(store.getSnapshot().tasks.length, 0)
+
+  store.dispose()
+  assert.equal(source.listeners(), 0)
+})
+
 test('store projects running jobs into tasks and the busy state', () => {
   const { ctx } = makeContext()
   const store = new PetStore({ ctx, now: () => 1000 })

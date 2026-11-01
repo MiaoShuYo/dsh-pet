@@ -309,6 +309,7 @@ body[data-ds-dark-theme] .dshp-root {
   background: var(--dshp-bg2);
 }
 .dshp-task[data-status="stopping"] { border-left-color: var(--dshp-warn); }
+.dshp-task[data-source="tool"] { border-left-color: var(--dshp-ok); }
 .dshp-task-label {
   overflow: hidden;
   color: var(--dshp-fg);

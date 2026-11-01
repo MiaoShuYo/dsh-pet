@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-01
+
+### Fixed
+
+- The task list now also consumes the current session event feed. Synchronous
+  `tool/call` entries appear immediately, with their `description` (or first
+  command line) as the title, and disappear on `tool/result` or `turn/end`.
+  The previous implementation watched only `ctx.jobs`, so ordinary running
+  commands (which are tool calls, not durable jobs) were invisible.
+
 ## [0.3.0] - 2026-11-01
 
 ### Changed

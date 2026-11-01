@@ -11,7 +11,7 @@
 ## 功能
 
 - **常驻状态牌**：余额 · 本会话 token · 上下文占用环（绿/橙/红）。点击余额去充值，点击 token 打开面板。
-- **进行中的任务**：宠物上方显示当前会话正在运行的后台任务（标题 + 进度）；任务执行时宠物自动切换为抱着笔记本的忙碌姿态。最多展示 3 条，其余折叠为“还有 N 个任务”。
+- **进行中的任务**：宠物上方显示当前会话正在执行的任务——既有后台 job，也有同步工具调用（例如正在运行的 `pwsh`/`bash` 命令）；标题优先取工具的 `description`，其次取命令首行。任务执行时宠物自动切换为抱着笔记本的忙碌姿态，最多展示 3 条。
 - **桌面定位**：位置按**屏幕坐标**保存；移动 DSH 窗口时宠物不会跟着走，而是留在用户放置的桌面位置。
 - **余额提醒**：可配置阈值与币种；跌破时气泡 + 表情提醒，30 分钟内不重复，点击直达充值页。
 - **上下文预警**：80% / 90% 两级（可调）；每个会话每一级只提醒一次，压缩后自动重置闩锁。
@@ -39,13 +39,13 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.0/dsh-pet-0.3.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.1/dsh-pet-0.3.1.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.1
 ```
 
 `lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。
@@ -83,7 +83,7 @@ dsh plugin --profile web add ./
 - **单击**：互动台词 + 短暂开心。
 - **双击 / 右键 / 长按**：打开设置面板。
 - **状态牌**：余额（点击充值）· 本会话 token（点击面板）· 上下文环 · `⋯` 快捷菜单（充值/用量/刷新/复制/设置/隐藏）。
-- **任务列表**：当前会话有后台任务时，宠物上方出现任务卡（标题 + 进度）；任务运行时宠物抱着笔记本工作，最多列 3 条，其余显示“还有 N 个任务”。可在「外观 → 显示任务列表」关闭。
+- **任务列表**：当前会话有正在执行的任务时，宠物上方出现任务卡。后台 job 显示 `label`/进度；同步工具调用显示工具 `description`（或命令首行），运行中的命令显示“正在运行命令”。最多列 3 条，其余显示“还有 N 个任务”。可在「外观 → 显示任务列表」关闭。
 - **面板页签**：状态 / 外观 / 提醒 / 专注 / 数据。
 - **隐藏**：外观 → 隐藏桌宠，右侧边缘出现 paw 手柄，点击恢复。
 - **演示状态**：数据 → 演示状态，可模拟任务执行、工作中、等待、低余额、上下文 90%、开心、难过，30 秒后自动结束，适合截图与验收。
@@ -96,7 +96,7 @@ dsh plugin --profile web add ./
 | 本会话 token | Session projection `tokenUsage`（四类桶） |
 | 上下文占用 | Session projection `contextPressure`（`projectedTokens`/`pressureTokens` ÷ `contextWindow`） |
 | token 构成 | Session projection `contextBreakdown`（system / tools / messages） |
-| 进行中的任务 | Client `ctx.jobs` 的 `job.list` 任务流（`label` / `progress` / `status`） |
+| 进行中的任务 | `ctx.jobs` 的 `job.list` 任务流 + 当前会话事件流中的 `tool/call` / `tool/result`（标题取 `arguments.description` 或命令首行） |
 | 轮次/等待/完成 | Client `useSessionStatus`（running / pendingInteraction / completionUnread） |
 | 今日统计 | 本机 localStorage 中的累计差值 |
 
@@ -178,17 +178,17 @@ docs/            skins.md、QA.md、preview.svg
 4. 发布版本：
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.3.1
+git push origin v0.3.1
 ```
 
 release 工作流会：
 
 - 运行 `build` / `check` / `test`；
-- `npm pack` 并把 `dsh-pet-0.3.0.tgz` 挂到 GitHub Release；
+- `npm pack` 并把 `dsh-pet-0.3.1.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
-> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.3.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.3.1` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
 
 也可以本地预览市场索引：
 
@@ -219,7 +219,7 @@ DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deeps
 
 - Draggable, hideable, keyboard-accessible pet with a compact status plaque and quick menu.
 - Desktop-anchored position: moving the DSH window does not move the pet; if the window moves completely away, a paw handle restores it.
-- Live task list from the client job roster, plus a laptop-holding busy pose while work runs.
+- Live task list from the client job roster **and the session event feed** (running `tool/call` entries), plus a laptop-holding busy pose while work runs.
 - Low-balance, context 80/90%, turn completion/failure, background completion and waiting-for-approval bubbles.
 - Session projections: `tokenUsage`, `contextPressure`, `contextBreakdown`; balance reuses the existing account Remote. No new network calls, no telemetry.
 - Daily stats in `localStorage`, pomodoro/water reminders, optional OS notifications and chimes.
@@ -229,9 +229,9 @@ DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deeps
 **Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.1
 # or a release tarball
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.0/dsh-pet-0.3.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.1/dsh-pet-0.3.1.tgz
 ```
 
 Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.

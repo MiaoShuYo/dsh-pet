@@ -27,7 +27,7 @@ import {
   createFocusState, focusRemaining, pauseFocus, resetFocus, resumeFocus, startFocus, tickFocus,
 } from '../shared/pomodoro.js'
 import { isBubbleExpired, makeBubble, shouldReplaceBubble } from '../shared/bubbles.js'
-import { sameTasks, tasksFromJobs } from '../shared/tasks.js'
+import { sameTasks, sortTasks, taskFromToolCall, tasksFromJobs } from '../shared/tasks.js'
 import { en, zh } from './locales.js'
 import {
   copyText, openExternal, playChime, readStorage, sendNotification, writeStorage,
@@ -35,8 +35,8 @@ import {
 
 const IDEA_KEYS = ['bubble.idle1', 'bubble.idle2', 'bubble.idle3', 'bubble.idle4', 'bubble.idle5']
 const DEMO_TASKS = [
-  { id: 'demo-task-1', label: '创建 V1.6.4 分支', status: 'running', progress: '正在运行命令', kind: 'bash', startedAt: 1 },
-  { id: 'demo-task-2', label: '运行单元测试', status: 'running', progress: 'pwsh · 12s', kind: 'bash', startedAt: 2 },
+  { id: 'demo-task-1', label: '创建 V1.6.4 分支', status: 'running', progress: '正在运行命令', kind: 'bash', source: 'job', toolName: '', command: false, startedAt: 1 },
+  { id: 'demo-task-2', label: '运行单元测试', status: 'running', progress: 'pwsh · 12s', kind: 'bash', source: 'job', toolName: '', command: false, startedAt: 2 },
 ]
 const TONE_TTL = {
   waiting: 0,
@@ -131,6 +131,8 @@ export class PetStore {
     this.jobsApi = null
     this.jobsUnsub = null
     this.jobRelease = null
+    this.jobTasks = []
+    this.toolCalls = new Map()
     this.tasks = []
     this.account = {
       phase: 'idle',
@@ -361,10 +363,8 @@ export class PetStore {
       this.jobsUnsub = null
     }
     this.jobsApi = null
-    if (this.tasks.length > 0) {
-      this.tasks = []
-      this.publish()
-    }
+    this.jobTasks = []
+    this.rebuildTasks()
   }
 
   /**
@@ -377,7 +377,7 @@ export class PetStore {
       try { this.jobRelease() } catch (_error) { /* already gone */ }
       this.jobRelease = null
     }
-    this.tasks = []
+    this.jobTasks = []
     if (this.jobsApi !== null && id !== null && typeof this.jobsApi.watchRows === 'function') {
       try {
         this.jobRelease = this.jobsApi.watchRows(id)
@@ -386,6 +386,7 @@ export class PetStore {
       }
     }
     this.syncJobs()
+    this.rebuildTasks()
   }
 
   /** Re-project the live job rows for the selected session. */
@@ -403,6 +404,18 @@ export class PetStore {
       }
     }
     const next = tasksFromJobs(rows)
+    if (!sameTasks(this.jobTasks, next)) {
+      this.jobTasks = next
+      this.rebuildTasks()
+    }
+  }
+
+  /**
+   * Merge job tasks and live tool calls into the task list.
+   * @returns undefined
+   */
+  rebuildTasks() {
+    const next = sortTasks([...this.jobTasks, ...this.toolCalls.values()])
     if (!sameTasks(this.tasks, next)) {
       this.tasks = next
       this.publish()
@@ -444,6 +457,7 @@ export class PetStore {
     const sessions = this.ctx.sessions
     const binding = typeof sessions.binding === 'function' ? sessions.binding(id) : undefined
     if (binding === undefined || binding === null) return
+    this.subscribeEvents(binding)
     const projections = binding.session?.projections
     if (projections === null || projections === undefined || typeof projections.faceOf !== 'function') return
     for (const key of ['tokenUsage', 'contextPressure', 'contextBreakdown']) {
@@ -461,6 +475,58 @@ export class PetStore {
     this.onProjection('contextPressure')
   }
 
+  /**
+   * Subscribe to the current session's tool-call event window. The event feed
+   * is the only source for synchronous tool calls; `ctx.jobs` only carries
+   * durable background jobs.
+   * @param binding - session binding.
+   * @returns undefined
+   */
+  subscribeEvents(binding) {
+    const source = binding.eventSource
+    if (source === null || source === undefined
+      || typeof source.getSnapshot !== 'function' || typeof source.subscribe !== 'function') return
+    const snapshot = source.getSnapshot()
+    this.foldEvents(snapshot !== null && snapshot !== undefined ? snapshot.entries : [], true)
+    const unsubscribe = source.subscribe(() => {
+      const next = source.getSnapshot()
+      if (next === null || next === undefined) return
+      const change = next.change
+      if (change !== null && change !== undefined && change.kind === 'append'
+        && Array.isArray(change.entries)) {
+        this.foldEvents(change.entries, false)
+        return
+      }
+      this.foldEvents(Array.isArray(next.entries) ? next.entries : [], true)
+    })
+    this.sessionUnsubs.push(unsubscribe)
+  }
+
+  /**
+   * Fold tool/call and tool/result events into the live call map.
+   * @param entries - event window entries.
+   * @param reset - rebuild from scratch instead of applying a live append.
+   * @returns undefined
+   */
+  foldEvents(entries, reset) {
+    if (!Array.isArray(entries)) return
+    if (reset) this.toolCalls.clear()
+    for (const entry of entries) {
+      const event = entry !== null && entry !== undefined && entry.event !== undefined ? entry.event : entry
+      if (event === null || event === undefined || typeof event.type !== 'string') continue
+      if (event.type === 'tool/call') {
+        const task = taskFromToolCall(event)
+        if (task !== null) this.toolCalls.set(task.id, task)
+      } else if (event.type === 'tool/result') {
+        const callId = event.data?.message?.source?.callId
+        if (typeof callId === 'string' && callId !== '') this.toolCalls.delete(`tool-${callId}`)
+      } else if (event.type === 'turn/start' || event.type === 'turn/end') {
+        this.toolCalls.clear()
+      }
+    }
+    this.rebuildTasks()
+  }
+
   /** Tear down the current session projection subscriptions. */
   unsubscribeSession() {
     for (const unsubscribe of this.sessionUnsubs) {
@@ -468,6 +534,8 @@ export class PetStore {
     }
     this.sessionUnsubs = []
     this.liveKeys.clear()
+    this.toolCalls.clear()
+    this.rebuildTasks()
   }
 
   /**

@@ -26,7 +26,7 @@ restart the Host (Host modules are cached).
 | Balance | Open panel → Status → Refresh | Balance appears; last-refresh time updates; wallets and bonus wallets are listed. |
 | Tokens | Send one prompt | Session token total grows; four buckets and system/tools/message breakdown match the host projections. |
 | Context | Force long context or use demo `Context 90%` | Ring turns orange/red; one 80% and one 90% bubble per session; bubble does not repeat until the level resets. |
-| Tasks | Run a background command, then use demo `Tasks running` to preview | Pet shows a task card with label + progress and the laptop busy pose; stopping jobs read `Stopping`; the card disappears when no live jobs remain; the Look toggle hides it without changing the busy state. |
+| Tasks | Run any command/tool call, then use demo `Tasks running` to preview | While a synchronous command is running, the task card shows its `description` or first command line and “Running command”; background jobs keep their own label/progress; both disappear on result/turn end. The Look toggle hides the card without changing the busy state. |
 | Low balance | Panel → Alerts → threshold above current balance; wait or refresh | Balance bubble appears once; clicking opens the top-up page; raising the threshold resets the latch. |
 | Turn done | Let a turn finish | `happy` state and completion bubble; optional chime if sound is on. |
 | Turn error | Force a model error | `sad` state and error bubble. |
