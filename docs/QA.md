@@ -32,7 +32,8 @@ restart the Host (Host modules are cached).
 | Turn error | Force a model error | `sad` state and error bubble. |
 | Background done | Run a second session in another tab; finish it | Background completion bubble names that session; clicking jumps to it. |
 | Waiting | Trigger an approval or an AskUserQuestion | `waiting` state with `!`; sticky bubble until the request is answered; clicking opens the session. |
-| Drag | Drag the pet around, reload | Position follows the pointer, clamps to the viewport, survives reload and resize. |
+| Drag | Drag the pet around, reload | Position follows the pointer and is saved in screen coordinates; reload restores it; moving the DSH window afterwards leaves the pet at the same desktop spot while that spot is inside the window. |
+| Window move | Place the pet, drag the DSH window several hundred pixels sideways | The pet stays at its desktop coordinate instead of travelling with the window. If the move puts it fully outside, a paw handle appears at the edge; clicking it restores the default corner. |
 | Hide/show | Panel → Look → Hide pet | Pet collapses to a paw handle at the edge; clicking restores it. |
 | Panel | Double-click, right-click, click plaque | Panel opens beside the pet, flips at screen edges, closes on Escape/outside click. |
 | Themes | Switch DSH light/dark | Surfaces, text and ring remain readable; no hard-coded white panels in dark mode. |

@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-01
+
+### Changed
+
+- Pet positions are now stored in **desktop screen coordinates**, not window
+  coordinates. Moving the DSH window no longer moves the pet; it keeps the spot
+  where the user put it while the window still covers that spot.
+- Dragging is clamped to the visible window; the frame watcher translates the
+  saved screen anchor back into viewport `left/top` every frame.
+- Legacy `{ right, bottom }` settings migrate once at startup.
+- If the DSH window is moved completely away from the pet, a paw handle appears
+  at the window edge; clicking it brings the pet back to the current corner.
+
 ## [0.2.0] - 2026-11-01
 
 ### Added

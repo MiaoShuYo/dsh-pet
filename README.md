@@ -12,6 +12,7 @@
 
 - **常驻状态牌**：余额 · 本会话 token · 上下文占用环（绿/橙/红）。点击余额去充值，点击 token 打开面板。
 - **进行中的任务**：宠物上方显示当前会话正在运行的后台任务（标题 + 进度）；任务执行时宠物自动切换为抱着笔记本的忙碌姿态。最多展示 3 条，其余折叠为“还有 N 个任务”。
+- **桌面定位**：位置按**屏幕坐标**保存；移动 DSH 窗口时宠物不会跟着走，而是留在用户放置的桌面位置。
 - **余额提醒**：可配置阈值与币种；跌破时气泡 + 表情提醒，30 分钟内不重复，点击直达充值页。
 - **上下文预警**：80% / 90% 两级（可调）；每个会话每一级只提醒一次，压缩后自动重置闩锁。
 - **轮次提醒**：当前会话完成/失败、后台会话完成、等待审批/回答，各有独立气泡与跳转。
@@ -38,13 +39,13 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.2.0/dsh-pet-0.2.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.0/dsh-pet-0.3.0.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.2.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.0
 ```
 
 `lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。
@@ -78,7 +79,7 @@ dsh plugin --profile web add ./
 
 ## 使用
 
-- **拖动**：按住宠物拖动；位置自动保存并钳制在窗口内。
+- **拖动**：按住宠物拖动；位置以屏幕坐标保存，移动 DSH 窗口不会移动宠物。若窗口移开导致宠物完全不可见，右侧边缘会出现 paw 手柄，点击即可把它带回当前窗口右下角。
 - **单击**：互动台词 + 短暂开心。
 - **双击 / 右键 / 长按**：打开设置面板。
 - **状态牌**：余额（点击充值）· 本会话 token（点击面板）· 上下文环 · `⋯` 快捷菜单（充值/用量/刷新/复制/设置/隐藏）。
@@ -177,17 +178,17 @@ docs/            skins.md、QA.md、preview.svg
 4. 发布版本：
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 release 工作流会：
 
 - 运行 `build` / `check` / `test`；
-- `npm pack` 并把 `dsh-pet-0.2.0.tgz` 挂到 GitHub Release；
+- `npm pack` 并把 `dsh-pet-0.3.0.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
-> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.2.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.3.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
 
 也可以本地预览市场索引：
 
@@ -200,7 +201,7 @@ npm run market:index
 
 - **仅 DeepSeek Platform 账户**：API-key-only 环境没有可读余额，会显示“账户不可用/未登录”，这是既有能力边界。
 - **上下文占用是近似值**：分子是最近一次请求的 provider 用量（或 surface 预计值），分母是该路由声明的 `contextWindow`；切换模型时两者可能短暂配对不上。这是 DSH token-meter 自身的设计，不是插件另算。
-- **仅应用内**：不创建系统级透明置顶窗口。未来若加桌面 helper，数据层已与 UI 解耦。
+- **仅应用内**：宠物仍绘制在 DSH 窗口内部，只是用屏幕坐标抵消窗口移动。窗口完全移开时它无法显示在窗口外，会收起为 paw 手柄；要真正浮在所有应用之上，需要独立的透明置顶窗口（未来可加桌面 helper，数据层已与 UI 解耦）。
 - **DSH 预 1.0**：扩展点仍在演进；`engines.dsh` 锁定 `<0.3.0`，升级 DSH 后请先跑 `docs/QA.md`。
 - 首次安装/升级后必须重启 Host，刷新页面不足以加载新的 Host 插件。
 
@@ -217,6 +218,7 @@ DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deeps
 **Highlights**
 
 - Draggable, hideable, keyboard-accessible pet with a compact status plaque and quick menu.
+- Desktop-anchored position: moving the DSH window does not move the pet; if the window moves completely away, a paw handle restores it.
 - Live task list from the client job roster, plus a laptop-holding busy pose while work runs.
 - Low-balance, context 80/90%, turn completion/failure, background completion and waiting-for-approval bubbles.
 - Session projections: `tokenUsage`, `contextPressure`, `contextBreakdown`; balance reuses the existing account Remote. No new network calls, no telemetry.
@@ -227,9 +229,9 @@ DSH Pet is an in-app desktop pet for [DeepSeek Harness](https://github.com/deeps
 **Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.2.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.3.0
 # or a release tarball
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.2.0/dsh-pet-0.2.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.3.0/dsh-pet-0.3.0.tgz
 ```
 
 Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.

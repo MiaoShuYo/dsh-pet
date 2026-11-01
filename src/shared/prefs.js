@@ -21,7 +21,7 @@ export const DEFAULT_PREFS = {
   language: 'auto',
   skinId: 'kuro',
   petName: '',
-  position: { right: 24, bottom: 110 },
+  position: { x: null, y: null, right: 24, bottom: 110 },
   account: { refreshSeconds: 60 },
   alerts: {
     lowBalance: true,
@@ -105,6 +105,12 @@ export function normalizePrefs(raw) {
     skinId: typeof source.skinId === 'string' && /^[a-z0-9-]{1,40}$/.test(source.skinId) ? source.skinId : DEFAULT_PREFS.skinId,
     petName: typeof source.petName === 'string' ? source.petName.slice(0, 24) : '',
     position: {
+      x: sourcePosition.x === null || sourcePosition.x === undefined || sourcePosition.x === ''
+        ? null
+        : Number.isFinite(Number(sourcePosition.x)) ? Number(sourcePosition.x) : null,
+      y: sourcePosition.y === null || sourcePosition.y === undefined || sourcePosition.y === ''
+        ? null
+        : Number.isFinite(Number(sourcePosition.y)) ? Number(sourcePosition.y) : null,
       right: Number.isFinite(Number(sourcePosition.right)) ? Math.max(0, Number(sourcePosition.right)) : DEFAULT_PREFS.position.right,
       bottom: Number.isFinite(Number(sourcePosition.bottom)) ? Math.max(0, Number(sourcePosition.bottom)) : DEFAULT_PREFS.position.bottom,
     },

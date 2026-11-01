@@ -50,3 +50,52 @@ export function panelPlacement(position, viewport, petSize, panel) {
     maxHeight: Math.max(160, Math.min(effectiveHeight, available)),
   }
 }
+
+/**
+ * Clamp a screen-space pet position into the current window content box.
+ * Used only while dragging: window movement never rewrites the stored screen
+ * position, so the pet keeps the spot the user chose.
+ * @param position - screen `{ x, y }` of the pet's top-left corner.
+ * @param frame - window content frame `{ contentX, contentY, width, height }`.
+ * @param size - rendered pet square size.
+ * @returns clamped screen position.
+ */
+export function clampScreenPosition(position, frame, size) {
+  const pet = Math.max(0, Number(size) || 0)
+  const minX = Number(frame.contentX) || 0
+  const minY = Number(frame.contentY) || 0
+  const maxX = minX + Math.max(0, (Number(frame.width) || 0) - pet)
+  const maxY = minY + Math.max(0, (Number(frame.height) || 0) - pet)
+  return {
+    x: clamp(position && position.x, minX, maxX),
+    y: clamp(position && position.y, minY, maxY),
+  }
+}
+
+/**
+ * Convert a stored screen-space position into the viewport layout the page
+ * paints. When the DSH window moves, `left`/`top` move by the opposite amount,
+ * so the pet stays at the same desktop coordinate. `visible` is false only
+ * when the pet is completely outside the window content box.
+ * @param position - screen `{ x, y }` of the pet's top-left corner.
+ * @param frame - window content frame `{ contentX, contentY, width, height }`.
+ * @param size - rendered pet square size.
+ * @returns `{ left, top, screenX, screenY, visible }`.
+ */
+export function screenLayout(position, frame, size) {
+  const pet = Math.max(0, Number(size) || 0)
+  const screenX = Number(position && position.x)
+  const screenY = Number(position && position.y)
+  const left = (Number.isFinite(screenX) ? screenX : 0) - (Number(frame.contentX) || 0)
+  const top = (Number.isFinite(screenY) ? screenY : 0) - (Number(frame.contentY) || 0)
+  const width = Number(frame.width) || 0
+  const height = Number(frame.height) || 0
+  const visible = left + pet > 0 && top + pet > 0 && left < width && top < height
+  return {
+    left,
+    top,
+    screenX: Number.isFinite(screenX) ? screenX : 0,
+    screenY: Number.isFinite(screenY) ? screenY : 0,
+    visible,
+  }
+}

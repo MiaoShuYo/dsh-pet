@@ -14,7 +14,7 @@ import {
   parseAmount, resolveLanguage, totalTokens,
 } from '../shared/format.js'
 import { contextOccupancy, contextTone, decideBalanceAlert, decideContextAlert } from '../shared/thresholds.js'
-import { clampPetPosition } from '../shared/geometry.js'
+import { clampScreenPosition, screenLayout } from '../shared/geometry.js'
 import { DEFAULT_PREFS, mergePrefs, normalizePrefs, petDisplayName } from '../shared/prefs.js'
 import {
   allSkins, exportSkin, findSkin, normalizeCustomSkins, skinLabel, validateSkinPack,
@@ -101,6 +101,15 @@ function mapGet(map, key) {
   return typeof map.get === 'function' ? map.get(key) : map[key]
 }
 
+/**
+ * Whether a value is a real finite number (null/undefined/'' are not 0 here).
+ * @param value - candidate.
+ * @returns boolean.
+ */
+function hasNumber(value) {
+  return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
+}
+
 /** The pet state container. */
 export class PetStore {
   /**
@@ -160,6 +169,8 @@ export class PetStore {
     this.demo = null
 
     this.tickHandle = null
+    this.frameRaf = null
+    this.frame = this.readFrame()
     this.windowHandlers = null
     this.started = false
   }
@@ -187,6 +198,8 @@ export class PetStore {
         return () => clearInterval(handle)
       }
     this.tickHandle = interval(() => { this.tick() }, 1000)
+    this.ensureScreenPosition()
+    this.startFrameLoop()
     this.bindWindow()
     this.refreshAccount(true)
     this.publish()
@@ -199,6 +212,10 @@ export class PetStore {
     if (this.tickHandle !== null) {
       try { this.tickHandle() } catch (_error) { /* already gone */ }
       this.tickHandle = null
+    }
+    if (this.frameRaf !== null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this.frameRaf)
+      this.frameRaf = null
     }
     if (this.listUnsub !== null) {
       try { this.listUnsub() } catch (_error) { /* already gone */ }
@@ -215,10 +232,7 @@ export class PetStore {
   bindWindow() {
     if (typeof window === 'undefined' || this.windowHandlers !== null) return
     const onResize = () => {
-      this.prefs = mergePrefs(this.prefs, {
-        position: clampPetPosition(this.prefs.position, this.viewport(), this.petSize()),
-      })
-      saveStoredJson(STORAGE_KEYS.prefs, this.prefs)
+      this.syncFrame()
       this.publish()
     }
     const onFocus = () => { this.refreshAccount(false) }
@@ -924,6 +938,7 @@ export class PetStore {
   tick() {
     if (this.disposed) return
     const now = this.now()
+    this.syncFrame()
     let changed = false
     if (this.bubble !== null && isBubbleExpired(this.bubble, now)) {
       this.bubble = null
@@ -991,29 +1006,53 @@ export class PetStore {
    */
   setPrefs(patch) {
     this.prefs = mergePrefs(this.prefs, patch)
-    this.prefs = mergePrefs(this.prefs, {
-      position: clampPetPosition(this.prefs.position, this.viewport(), this.petSize()),
-    })
     saveStoredJson(STORAGE_KEYS.prefs, this.prefs)
     this.publish()
   }
 
   /**
-   * Persist the pet position, clamped to the viewport.
-   * @param position - desired anchor.
+   * Persist the pet's desktop position. The stored coordinate is the pet's
+   * top-left in screen space, so moving the DSH window does not move the pet.
+   * Legacy `{ right, bottom }` calls are converted once, for old tests and
+   * settings.
+   * @param position - screen `{ x, y }`, or legacy viewport `{ right, bottom }`.
    * @returns undefined
    */
   setPosition(position) {
+    const size = this.petSize()
+    const frame = this.readFrame()
+    let next
+    if (position !== null && position !== undefined
+      && hasNumber(position.x) && hasNumber(position.y)) {
+      next = { x: Number(position.x), y: Number(position.y) }
+    } else {
+      next = {
+        x: frame.contentX + frame.width - (Number(position?.right) || 0) - size,
+        y: frame.contentY + frame.height - (Number(position?.bottom) || 0) - size,
+      }
+    }
+    const clamped = clampScreenPosition(next, frame, size)
+    this.frame = frame
     this.prefs = mergePrefs(this.prefs, {
-      position: clampPetPosition(position, this.viewport(), this.petSize()),
+      position: {
+        x: clamped.x,
+        y: clamped.y,
+        right: Math.max(0, frame.width - (clamped.x - frame.contentX) - size),
+        bottom: Math.max(0, frame.height - (clamped.y - frame.contentY) - size),
+      },
     })
     saveStoredJson(STORAGE_KEYS.prefs, this.prefs)
     this.publish()
   }
 
-  /** Reset the pet to its default corner. */
+  /** Reset the pet to the current window's bottom-right corner. */
   resetPosition() {
-    this.setPrefs({ position: DEFAULT_PREFS.position })
+    const frame = this.readFrame()
+    const size = this.petSize()
+    this.setPosition({
+      x: frame.contentX + frame.width - DEFAULT_PREFS.position.right - size,
+      y: frame.contentY + frame.height - DEFAULT_PREFS.position.bottom - size,
+    })
     this.pushBubble('idle', 'position-reset', {}, { ttl: 2500, force: true, keyText: 'bubble.positionReset' })
   }
 
@@ -1253,6 +1292,7 @@ export class PetStore {
       lowBalance: this.isLowBalance(account),
       demo,
       compact: this.isCompact(),
+      layout: this.layoutSnapshot(),
       updatedAt: now,
     }
   }
@@ -1377,6 +1417,109 @@ export class PetStore {
     const primary = this.account.primary
     if (primary === null) return null
     return todayBalanceDelta(this.stats, primary.currency)
+  }
+
+  /**
+   * Read the current window content frame in screen coordinates.
+   * `screenX`/`screenY` are the outer window origin; the content box starts
+   * below the title bar and inside any border. Both are DIPs, matching CSS px.
+   * @returns content frame.
+   */
+  readFrame() {
+    if (typeof window === 'undefined') {
+      return { screenX: 0, screenY: 0, contentX: 0, contentY: 0, width: 1280, height: 800 }
+    }
+    const width = Number(window.innerWidth) || 0
+    const height = Number(window.innerHeight) || 0
+    const outerWidth = Number(window.outerWidth) || width
+    const outerHeight = Number(window.outerHeight) || height
+    const border = Math.max(0, (outerWidth - width) / 2)
+    const chrome = Math.max(0, outerHeight - height)
+    const screenX = Number(window.screenX) || 0
+    const screenY = Number(window.screenY) || 0
+    return {
+      screenX,
+      screenY,
+      contentX: screenX + border,
+      contentY: screenY + chrome,
+      width,
+      height,
+    }
+  }
+
+  /** Start the frame watcher that keeps the pet on its desktop coordinate. */
+  startFrameLoop() {
+    if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return
+    const loop = () => {
+      if (this.disposed) return
+      this.syncFrame()
+      this.frameRaf = requestAnimationFrame(loop)
+    }
+    this.frameRaf = requestAnimationFrame(loop)
+  }
+
+  /** Republish the layout only when the window content frame moved or resized. */
+  syncFrame() {
+    const next = this.readFrame()
+    const current = this.frame || next
+    if (next.contentX !== current.contentX || next.contentY !== current.contentY
+      || next.width !== current.width || next.height !== current.height) {
+      this.frame = next
+      this.publish()
+    } else {
+      this.frame = next
+    }
+  }
+
+  /**
+   * Migrate legacy right/bottom preferences into desktop coordinates once.
+   * @returns undefined
+   */
+  ensureScreenPosition() {
+    const position = this.prefs.position
+    if (hasNumber(position.x) && hasNumber(position.y)) return
+    const frame = this.readFrame()
+    const size = this.petSize()
+    this.setPosition({
+      x: frame.contentX + frame.width - (Number(position.right) || 0) - size,
+      y: frame.contentY + frame.height - (Number(position.bottom) || 0) - size,
+    })
+  }
+
+  /**
+   * Resolve the stored screen position, converting legacy right/bottom once if
+   * a snapshot is requested before start().
+   * @returns screen `{ x, y }`.
+   */
+  resolvedScreenPosition() {
+    const position = this.prefs.position
+    if (hasNumber(position.x) && hasNumber(position.y)) {
+      return { x: Number(position.x), y: Number(position.y) }
+    }
+    const frame = this.readFrame()
+    const size = this.petSize()
+    return {
+      x: frame.contentX + frame.width - (Number(position.right) || 0) - size,
+      y: frame.contentY + frame.height - (Number(position.bottom) || 0) - size,
+    }
+  }
+
+  /**
+   * Current pet layout in viewport coordinates plus its screen anchor.
+   * @returns layout.
+   */
+  layoutSnapshot() {
+    const frame = this.frame || this.readFrame()
+    const size = this.petSize()
+    const layout = screenLayout(this.resolvedScreenPosition(), frame, size)
+    return {
+      ...layout,
+      size,
+      contentX: frame.contentX,
+      contentY: frame.contentY,
+      width: frame.width,
+      height: frame.height,
+    }
   }
 
   /**

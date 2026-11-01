@@ -366,8 +366,8 @@ function PetAnchor(props) {
     pointer.current = {
       x: event.clientX,
       y: event.clientY,
-      right: snap.prefs.position.right,
-      bottom: snap.prefs.position.bottom,
+      screenX: snap.layout.screenX,
+      screenY: snap.layout.screenY,
       moved: false,
     }
     setPressed(true)
@@ -380,7 +380,7 @@ function PetAnchor(props) {
     const dy = event.clientY - state.y
     if (!state.moved && Math.abs(dx) + Math.abs(dy) > 6) state.moved = true
     if (!state.moved) return
-    actions.setPosition({ right: state.right - dx, bottom: state.bottom - dy })
+    actions.setPosition({ x: state.screenX + dx, y: state.screenY + dy })
   }
   const finish = (event) => {
     const state = pointer.current
@@ -430,8 +430,8 @@ function PetAnchor(props) {
     tokens: tokensText,
   })
   const style = {
-    right: snap.prefs.position.right + 'px',
-    bottom: snap.prefs.position.bottom + 'px',
+    left: snap.layout.left + 'px',
+    top: snap.layout.top + 'px',
     opacity: snap.prefs.opacity,
   }
   return uiH('div', { className: 'dshp-root dshp-anchor', style, ref: props.anchorRef },
@@ -495,14 +495,21 @@ function PetAnchor(props) {
  */
 function PetHandle(props) {
   const snap = props.snap
-  const style = { right: '0px', bottom: snap.prefs.position.bottom + 'px' }
+  const viewportHeight = typeof window === 'undefined' ? 800 : window.innerHeight
+  const top = props.offscreen === true
+    ? Math.max(12, Math.round((viewportHeight - 42) / 2))
+    : Math.min(Math.max(12, Math.round(snap.layout.top)), Math.max(12, viewportHeight - 42))
+  const style = { right: '0px', top: top + 'px' }
   return uiH('div', { className: 'dshp-root', style: { position: 'fixed', zIndex: 40, pointerEvents: 'none' } },
     uiH('button', {
       type: 'button',
       className: 'dshp-handle',
       style,
       'aria-label': props.actions.translate('actions.show'),
-      onClick: () => { props.actions.setPrefs({ visible: true }) },
+      onClick: () => {
+        props.actions.setPrefs({ visible: true })
+        if (props.offscreen === true) props.actions.resetPosition()
+      },
     }, '\ud83d\udc3e'))
 }
 
@@ -1039,7 +1046,11 @@ function SettingsPanel(props) {
   const [tab, setTab] = React.useState('status')
   const [notice, setNotice] = React.useState('')
   const viewport = { width: window.innerWidth, height: window.innerHeight }
-  const placement = panelPlacement(snap.prefs.position, viewport, props.size, { width: 336, height: 560 })
+  const anchor = {
+    right: viewport.width - snap.layout.left - props.size,
+    bottom: viewport.height - snap.layout.top - props.size,
+  }
+  const placement = panelPlacement(anchor, viewport, props.size, { width: 336, height: 560 })
   const style = {
     left: placement.left + 'px',
     top: placement.top + 'px',
@@ -1146,7 +1157,9 @@ export function PetLayer(props) {
     setMenuOpen(false)
     setPanelOpen(true)
   }
-  if (!snap.prefs.visible) return uiH(PetHandle, { snap, actions: props })
+  if (!snap.prefs.visible || snap.layout.visible === false) {
+    return uiH(PetHandle, { snap, actions: props, offscreen: snap.layout.visible === false })
+  }
   return uiH(React.Fragment, null,
     uiH(PetAnchor, {
       snap,

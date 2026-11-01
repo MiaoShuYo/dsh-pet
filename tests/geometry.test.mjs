@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clampPetPosition, panelPlacement } from '../src/shared/geometry.js'
+import { clampPetPosition, clampScreenPosition, panelPlacement, screenLayout } from '../src/shared/geometry.js'
 
 test('clampPetPosition keeps the pet inside the viewport', () => {
   assert.deepEqual(clampPetPosition({ right: 10, bottom: 20 }, { width: 1000, height: 800 }, 120), { right: 10, bottom: 20 })
@@ -31,4 +31,22 @@ test('panelPlacement never lets a normal panel run past the bottom edge', () => 
   const placement = panelPlacement({ right: 40, bottom: 120 }, { width: 1440, height: 900 }, 120, { width: 336, height: 560 })
   assert.equal(placement.maxHeight, 560)
   assert.ok(placement.top + placement.maxHeight <= 900 - 11)
+})
+
+test('clampScreenPosition keeps the pet inside the window content frame', () => {
+  const frame = { contentX: 100, contentY: 80, width: 800, height: 600 }
+  assert.deepEqual(clampScreenPosition({ x: 300, y: 300 }, frame, 120), { x: 300, y: 300 })
+  assert.deepEqual(clampScreenPosition({ x: -500, y: 9999 }, frame, 120), { x: 100, y: 560 })
+})
+
+test('screenLayout converts a desktop anchor into viewport coordinates', () => {
+  const frame = { contentX: 100, contentY: 80, width: 800, height: 600 }
+  const layout = screenLayout({ x: 300, y: 300 }, frame, 120)
+  assert.equal(layout.left, 200)
+  assert.equal(layout.top, 220)
+  assert.equal(layout.screenX, 300)
+  assert.equal(layout.screenY, 300)
+  assert.equal(layout.visible, true)
+  assert.equal(screenLayout({ x: -500, y: 300 }, frame, 120).visible, false)
+  assert.equal(screenLayout({ x: 300, y: 9999 }, frame, 120).visible, false)
 })

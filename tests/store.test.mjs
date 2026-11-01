@@ -283,3 +283,48 @@ test('store demo tasks show the task list without a job stream', () => {
   assert.equal(snap.state, 'working')
   store.dispose()
 })
+
+test('store keeps its desktop position when the window moves', () => {
+  const previousWindow = globalThis.window
+  const listeners = new Set()
+  const fakeWindow = {
+    screenX: 100,
+    screenY: 50,
+    innerWidth: 1000,
+    innerHeight: 700,
+    outerWidth: 1000,
+    outerHeight: 700,
+    addEventListener: (name) => { listeners.add(name) },
+    removeEventListener: (name) => { listeners.delete(name) },
+    focus: () => {},
+    open: () => {},
+  }
+  globalThis.window = fakeWindow
+  try {
+    const { ctx } = makeContext()
+    const store = new PetStore({ ctx, now: () => 1000 })
+    store.start()
+    store.setPosition({ x: 600, y: 400 })
+    let layout = store.getSnapshot().layout
+    assert.equal(layout.left, 500)
+    assert.equal(layout.top, 350)
+    assert.equal(layout.screenX, 600)
+
+    fakeWindow.screenX = 220
+    fakeWindow.screenY = 90
+    store.syncFrame()
+    layout = store.getSnapshot().layout
+    assert.equal(layout.left, 380)
+    assert.equal(layout.top, 310)
+    assert.equal(layout.screenX, 600)
+    assert.equal(layout.screenY, 400)
+
+    store.setPrefs({ position: { x: -500, y: 400 } })
+    assert.equal(store.getSnapshot().layout.visible, false)
+    store.dispose()
+    assert.equal(listeners.size, 0)
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window
+    else globalThis.window = previousWindow
+  }
+})
