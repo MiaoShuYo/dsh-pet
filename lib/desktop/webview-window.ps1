@@ -16,18 +16,27 @@ try {
   Add-Type -AssemblyName System.Windows.Forms
 
   $source = Join-Path $PSScriptRoot 'webview2'
-  $dllDir = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview2'
+  $baseDir = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview2'
+  $dllDir = Join-Path $baseDir ('run-' + $PID)
   if (Test-Path -LiteralPath $source) {
     New-Item -ItemType Directory -Force $dllDir | Out-Null
     Get-ChildItem -LiteralPath $source -File | ForEach-Object {
       $target = Join-Path $dllDir $_.Name
-      if (-not (Test-Path -LiteralPath $target)) {
-        try {
-          Copy-Item -LiteralPath $_.FullName -Destination $target -Force
-          Unblock-File -LiteralPath $target
-        } catch { }
-      }
+      try {
+        Copy-Item -LiteralPath $_.FullName -Destination $target -Force
+        Unblock-File -LiteralPath $target
+      } catch { }
     }
+    try {
+      Get-ChildItem -LiteralPath $baseDir -Directory -Filter 'run-*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -ne $dllDir -and $_.LastWriteTime -lt (Get-Date).AddDays(-1) } |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    } catch { }
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $dllDir 'Microsoft.Web.WebView2.Core.dll'))) {
+    $fallback = Get-ChildItem -LiteralPath $baseDir -Directory -Filter 'run-*' -ErrorAction SilentlyContinue |
+      Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($null -ne $fallback) { $dllDir = $fallback.FullName }
   }
   Set-Location $dllDir
   Add-Type -Path (Join-Path $dllDir 'Microsoft.Web.WebView2.Core.dll')

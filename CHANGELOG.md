@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-07
+
+### Fixed
+
+- WebView2 assemblies are now copied into a per-process
+  `%LOCALAPPDATA%\dsh-pet\webview2\run-<pid>` directory. Restarting the
+  desktop window can no longer fail with
+  `The process cannot access ... Microsoft.Web.WebView2.Core.dll because it is
+  being used by another process.`
+- Old per-run DLL directories are cleaned up after a day.
+
 ## [0.7.1] - 2026-11-07
 
 ### Fixed
