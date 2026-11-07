@@ -2,8 +2,8 @@
 
 Run `npm run check && npm test` first. Then install the plugin into a disposable
 Windows DSH desktop profile and verify the matrix below. The pet is a separate
-Edge desktop window running the same React UI; it should not render inside the
-main DSH page.
+frameless WebView2 desktop window running the same React UI; it should not
+render inside the main DSH page.
 
 ## Setup
 

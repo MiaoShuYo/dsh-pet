@@ -31,7 +31,7 @@
 | DSH | `>=0.2.0-rc.2 <0.3.0`（当前验证目标 0.2.1-rc.5） |
 | 客户端 | DSH 桌面应用（Windows）；插件仍通过 Web Client 读取会话数据 |
 | Node（开发） | >= 20，无运行时依赖 |
-| 平台 | **Windows 10/11 + Microsoft Edge**（独立桌面窗口）；macOS / Linux 暂无桌面宠物 |
+| 平台 | **Windows 10/11 + WebView2 Runtime**（独立桌面窗口）；macOS / Linux 暂无桌面宠物 |
 
 ## 安装
 
@@ -40,13 +40,13 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.6.0/dsh-pet-0.6.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.7.0/dsh-pet-0.7.0.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.6.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.7.0
 ```
 
 `lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。Windows 独立窗口的 PowerShell helper 与宠物 PNG 已包含在包内，使用系统自带的 Windows PowerShell，不需要另外安装 Electron 或运行时。
@@ -184,17 +184,17 @@ docs/            skins.md、QA.md、preview.svg
 4. 发布版本：
 
 ```bash
-git tag v0.6.0
-git push origin v0.6.0
+git tag v0.7.0
+git push origin v0.7.0
 ```
 
 release 工作流会：
 
 - 运行 `build` / `check` / `test`；
-- `npm pack` 并把 `dsh-pet-0.6.0.tgz` 挂到 GitHub Release；
+- `npm pack` 并把 `dsh-pet-0.7.0.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
-> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.6.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.7.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
 
 也可以本地预览市场索引：
 
@@ -208,8 +208,8 @@ npm run market:index
 - **仅 DeepSeek Platform 账户**：API-key-only 环境没有可读余额，会显示“账户不可用/未登录”，这是既有能力边界。
 - **上下文占用是近似值**：分子是最近一次请求的 provider 用量（或 surface 预计值），分母是该路由声明的 `contextWindow`；切换模型时两者可能短暂配对不上。这是 DSH token-meter 自身的设计，不是插件另算。
 - **仅 Windows 桌面窗口**：按要求不再在 DSH 页面内渲染宠物；macOS / Linux 暂无桌面宠物。
-- **独立窗口是 Edge 应用窗口**：Host 用 Edge 打开一个隐藏了 DSH 主体的独立窗口，里面运行同一套 React 宠物/设置 UI；窗口有系统标题栏，不是逐像素透明窗口或点击穿透。
-- **需要 Microsoft Edge**：Windows 10/11 自带；桌面窗口打开失败时检查 Edge 是否可用。
+- **独立窗口是 WebView2 无边框窗口**：Host 用 WebView2 打开一个无边框、置顶的独立窗口，隐藏 DSH 主体并运行同一套 React 宠物/设置 UI；顶部 22px 可拖动，托盘可退出。窗口不是逐像素透明或点击穿透。
+- **需要 Microsoft Edge WebView2 Runtime**：Windows 10/11 自带；桌面窗口打开失败时检查 Edge 是否可用。
 - **需要 Windows PowerShell**：helper 随插件打包，不额外下载；启动失败可查看 `%LOCALAPPDATA%\\dsh-pet\\last-error.txt`。
 - **DSH 预 1.0**：扩展点仍在演进；`engines.dsh` 锁定 `<0.3.0`，升级 DSH 后请先跑 `docs/QA.md`。
 - 首次安装/升级后必须重启 Host，刷新页面不足以加载新的 Host 插件。
@@ -238,9 +238,9 @@ DSH Pet is a **Windows desktop pet** for [DeepSeek Harness](https://github.com/d
 **Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.6.0
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.7.0
 # or a release tarball
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.6.0/dsh-pet-0.6.0.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.7.0/dsh-pet-0.7.0.tgz
 ```
 
 Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.

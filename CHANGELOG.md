@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-07
+
+### Changed
+
+- Replaced the Edge application window with a **frameless WPF + WebView2**
+  window. Same React UI, no system titlebar.
+- Bundled the WebView2 managed/native assemblies; the helper copies them to
+  `%LOCALAPPDATA%\dsh-pet\webview2` before loading so the plugin works from a
+  network-mapped workspace drive.
+- Added a 22px invisible drag strip and a tray menu (show/hide, settings, exit).
+- WebView2 content uses the exact DSH pet/settings renderer; DSH chrome remains
+  hidden.
+- Known limitation: the window is frameless but still opaque (not per-pixel
+  transparent/click-through).
+
 ## [0.6.0] - 2026-11-07
 
 ### Changed
