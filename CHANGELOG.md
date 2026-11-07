@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-11-07
+
+### Fixed
+
+- Removed `/diag`; calling `ctx.connection.authenticatedUrl()` inside an HTTP
+  request could crash the DSH Host.
+- The authenticated HTTP GUI URL is now resolved **once at plugin startup**,
+  after declaring `inject: ['webServer', 'connection']`; request handlers and
+  the desktop launcher only read the cached string.
+- `/status` reports `guiResolved` without exposing the URL/token.
+- This also fixes the desktop pet not opening because the DSH Desktop renderer
+  uses `dsh-app://app/`, which is not a WebView2-loadable URL.
+
 ## [0.7.3] - 2026-11-07
 
 ### Fixed
