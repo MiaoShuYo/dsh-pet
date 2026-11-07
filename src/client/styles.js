@@ -34,7 +34,7 @@ body.dshp-desktop-mode {
   --dshp-border: #34343d;
   --dshp-bubble-bg: #10152a;
   --dshp-accent: #6da8ff;
-  background: #0c0c0e !important;
+  background: #ff00ff !important;
   color: #f2f4f8;
   overflow: hidden !important;
 }

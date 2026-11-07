@@ -40,13 +40,13 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.7.8/dsh-pet-0.7.8.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.7.9/dsh-pet-0.7.9.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.7.8
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.7.9
 ```
 
 `lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。Windows 独立窗口的 PowerShell helper 与宠物 PNG 已包含在包内，使用系统自带的 Windows PowerShell，不需要另外安装 Electron 或运行时。
@@ -184,17 +184,17 @@ docs/            skins.md、QA.md、preview.svg
 4. 发布版本：
 
 ```bash
-git tag v0.7.8
-git push origin v0.7.8
+git tag v0.7.9
+git push origin v0.7.9
 ```
 
 release 工作流会：
 
 - 运行 `build` / `check` / `test`；
-- `npm pack` 并把 `dsh-pet-0.7.8.tgz` 挂到 GitHub Release；
+- `npm pack` 并把 `dsh-pet-0.7.9.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
-> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.7.8` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.7.9` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
 
 也可以本地预览市场索引：
 
@@ -238,9 +238,9 @@ DSH Pet is a **Windows desktop pet** for [DeepSeek Harness](https://github.com/d
 **Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.7.8
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.7.9
 # or a release tarball
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.7.8/dsh-pet-0.7.8.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.7.9/dsh-pet-0.7.9.tgz
 ```
 
 Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.

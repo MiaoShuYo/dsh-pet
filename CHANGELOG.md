@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.9] - 2026-11-07
+
+### Fixed
+
+- Replaced the rectangular per-element window region with a **chroma-key
+  capture mask**. The desktop page paints its background magenta; the host
+  captures the WebView2 surface and builds a native region from every
+  non-magenta pixel. The black body and black box behind the bubble/plaque are
+  now gone; only the actual UI pixels remain.
+- Region construction runs in a small C# helper (GDI region) for speed.
+
 ## [0.7.8] - 2026-11-07
 
 ### Fixed
