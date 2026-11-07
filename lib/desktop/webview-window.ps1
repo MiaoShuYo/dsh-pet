@@ -1,4 +1,4 @@
-param([string]$LaunchUrl = '')
+﻿param([string]$LaunchUrl = '')
 
 $logPath = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview-error.txt'
 function Write-PetLog([string]$Text) {

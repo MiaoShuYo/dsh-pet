@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-11-07
+
+### Fixed
+
+- Restored the UTF-8 BOM on `webview-window.ps1`. Without it Windows
+  PowerShell 5.1 read the Chinese string `退出` as mojibake, failed with
+  `The string is missing the terminator`, and exited before showing the pet.
+- The compact window now repositions the pet to its own bottom-right after each
+  resize; previously the window shrank but the pet could remain outside the
+  clipped bounds, leaving an empty dark card.
+- Removed the `desktop-launch` cleanup match so the running helper is not
+  killed by stale-window cleanup.
+
 ## [0.7.5] - 2026-11-07
 
 ### Changed

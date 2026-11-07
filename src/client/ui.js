@@ -1223,6 +1223,16 @@ export function PetLayer(props) {
     if (!desktopMode) return undefined
     const postBounds = () => {
       try {
+        const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
+        const border = Math.max(0, (window.outerWidth - window.innerWidth) / 2)
+        const chrome = Math.max(0, window.outerHeight - window.innerHeight)
+        const targetX = window.screenX + border + window.innerWidth - size - 16
+        const targetY = window.screenY + chrome + window.innerHeight - size - 72
+        const current = snap.prefs.position
+        if (current === null || current === undefined
+          || Math.abs(current.x - targetX) > 8 || Math.abs(current.y - targetY) > 8) {
+          props.setPosition({ x: targetX, y: targetY })
+        }
         const nodes = document.querySelectorAll('.dshp-anchor, .dshp-panel, .dshp-plaque, .dshp-bubble, .dshp-tasks, .dshp-menu')
         let left = Infinity
         let top = Infinity
