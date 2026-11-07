@@ -1219,6 +1219,47 @@ export function PetLayer(props) {
     return () => { document.body.classList.remove('dshp-desktop-mode') }
   }, [desktopMode])
 
+  React.useEffect(() => {
+    if (!desktopMode) return undefined
+    const postBounds = () => {
+      try {
+        const nodes = document.querySelectorAll('.dshp-anchor, .dshp-panel, .dshp-plaque, .dshp-bubble, .dshp-tasks, .dshp-menu')
+        let left = Infinity
+        let top = Infinity
+        let right = 0
+        let bottom = 0
+        nodes.forEach((node) => {
+          const rect = node.getBoundingClientRect()
+          if (rect.width < 2 || rect.height < 2) return
+          left = Math.min(left, rect.left)
+          top = Math.min(top, rect.top)
+          right = Math.max(right, rect.right)
+          bottom = Math.max(bottom, rect.bottom)
+        })
+        if (!Number.isFinite(left) || right <= left) return
+        const bridge = window.chrome && window.chrome.webview
+        if (bridge && typeof bridge.postMessage === 'function') {
+          bridge.postMessage({
+            type: 'dsh-pet-bounds',
+            width: Math.ceil(right - left + 16),
+            height: Math.ceil(bottom - top + 16),
+          })
+        }
+      } catch (_error) { /* bridge unavailable */ }
+    }
+    const timer = setInterval(postBounds, 700)
+    const first = setTimeout(postBounds, 250)
+    const observer = typeof MutationObserver === 'function' ? new MutationObserver(postBounds) : null
+    if (observer !== null) observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+    window.addEventListener('resize', postBounds)
+    return () => {
+      clearInterval(timer)
+      clearTimeout(first)
+      window.removeEventListener('resize', postBounds)
+      if (observer !== null) observer.disconnect()
+    }
+  }, [desktopMode, panelOpen])
+
   if (!desktopMode) return null
 
   const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))

@@ -1,4 +1,4 @@
-﻿param([string]$LaunchUrl = '')
+param([string]$LaunchUrl = '')
 
 $logPath = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview-error.txt'
 function Write-PetLog([string]$Text) {
@@ -88,6 +88,25 @@ try {
         return
       }
       if ($script:LaunchUrl -ne '') { $script:WebView.CoreWebView2.Navigate($script:LaunchUrl) }
+      $script:WebView.CoreWebView2.add_WebMessageReceived({
+        try {
+          $message = $args[1].WebMessageAsJson | ConvertFrom-Json
+          if ($message.type -ne 'dsh-pet-bounds') { return }
+          $targetWidth = [Math]::Max(200, [Math]::Min(520, [int]$message.width))
+          $targetHeight = [Math]::Max(180, [Math]::Min(820, ([int]$message.height + 22)))
+          $right = $script:Window.Left + $script:Window.Width
+          $bottom = $script:Window.Top + $script:Window.Height
+          $script:Window.Width = $targetWidth
+          $script:Window.Height = $targetHeight
+          $script:Window.Left = $right - $targetWidth
+          $script:Window.Top = $bottom - $targetHeight
+          $area = [System.Windows.SystemParameters]::WorkArea
+          if ($script:Window.Left -lt $area.Left) { $script:Window.Left = $area.Left }
+          if ($script:Window.Top -lt $area.Top) { $script:Window.Top = $area.Top }
+          if ($script:Window.Left + $script:Window.Width -gt $area.Right) { $script:Window.Left = $area.Right - $script:Window.Width }
+          if ($script:Window.Top + $script:Window.Height -gt $area.Bottom) { $script:Window.Top = $area.Bottom - $script:Window.Height }
+        } catch { }
+      })
     } catch {
       Write-PetLog ("WebView2 init handler: " + $_.Exception.Message)
     }

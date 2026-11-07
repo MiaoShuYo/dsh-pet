@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-11-07
+
+### Changed
+
+- The frameless WebView2 window now resizes itself to the actual UI bounds
+  reported by the React layer (pet + plaque + task card, or an open settings
+  panel), anchored at its bottom-right. This removes the huge 420x760 black
+  rectangle; the window stays compact around the visible content.
+- Window grows when settings open and shrinks back when it closes.
+
 ## [0.7.4] - 2026-11-07
 
 ### Fixed
