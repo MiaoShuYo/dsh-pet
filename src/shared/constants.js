@@ -4,7 +4,7 @@
  */
 
 /** Package version shown in the settings panel; kept in sync by scripts/check.mjs. */
-export const PET_VERSION = '0.7.0'
+export const PET_VERSION = '0.7.1'
 
 /** Snapshot schema version; bump when the store snapshot shape changes. */
 export const SNAPSHOT_VERSION = 1

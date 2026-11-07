@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-07
+
+### Fixed
+
+- Fixed the desktop launcher showing `{"ok":false,"error":"invalid-target"}`.
+  `/desktop-launch` now reads the current GUI URL, session and prefs from the
+  host state instead of passing them through the WebView2 launch URL, so URL
+  parsing/quoting can no longer corrupt the target.
+- The launch URL no longer contains `&`/JSON query fragments.
+
 ## [0.7.0] - 2026-11-07
 
 ### Changed
