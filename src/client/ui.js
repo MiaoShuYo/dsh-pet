@@ -1259,12 +1259,76 @@ export function PetLayer(props) {
     }
     const timer = setInterval(postBounds, 700)
     const first = setTimeout(postBounds, 250)
+    let maskBusy = false
+    const postRegions = async () => {
+      if (maskBusy) return
+      maskBusy = true
+      try {
+        const petEl = document.querySelector('.dshp-pet')
+        if (petEl === null) return
+        const rect = petEl.getBoundingClientRect()
+        if (rect.width < 2 || rect.height < 2) return
+        const bridge = window.chrome && window.chrome.webview
+        if (!bridge || typeof bridge.postMessage !== 'function') return
+        const boxSelectors = ['.dshp-plaque', '.dshp-bubble', '.dshp-tasks', '.dshp-panel', '.dshp-menu', '.dshp-badge', '.dshp-focus-chip']
+        const boxes = []
+        for (const selector of boxSelectors) {
+          const element = document.querySelector(selector)
+          if (element === null) continue
+          const box = element.getBoundingClientRect()
+          if (box.width < 2 || box.height < 2) continue
+          boxes.push({ x: box.left, y: box.top, w: box.width, h: box.height })
+        }
+        let runs = null
+        const svg = petEl.querySelector('svg')
+        if (svg !== null) {
+          try {
+            const xml = new XMLSerializer().serializeToString(svg)
+            const image = new Image()
+            image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml)
+            await image.decode()
+            const canvas = document.createElement('canvas')
+            canvas.width = Math.max(1, Math.ceil(rect.width))
+            canvas.height = Math.max(1, Math.ceil(rect.height))
+            const context = canvas.getContext('2d')
+            if (context !== null) {
+              context.drawImage(image, 0, 0, canvas.width, canvas.height)
+              const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+              runs = []
+              for (let y = 0; y < canvas.height; y += 1) {
+                let start = -1
+                for (let x = 0; x <= canvas.width; x += 1) {
+                  const alpha = x < canvas.width ? pixels[(y * canvas.width + x) * 4 + 3] : 0
+                  if (alpha > 28 && start < 0) start = x
+                  else if (alpha <= 28 && start >= 0) {
+                    runs.push([start, y, x - start])
+                    start = -1
+                  }
+                }
+              }
+            }
+          } catch (_error) { runs = null }
+        }
+        bridge.postMessage({
+          type: 'dsh-pet-regions',
+          pet: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
+          boxes,
+          runs,
+        })
+      } catch (_error) { /* bridge unavailable */ } finally {
+        maskBusy = false
+      }
+    }
+    const regionTimer = setInterval(postRegions, 1200)
+    const firstRegion = setTimeout(postRegions, 500)
     const observer = typeof MutationObserver === 'function' ? new MutationObserver(postBounds) : null
     if (observer !== null) observer.observe(document.body, { childList: true, subtree: true, attributes: true })
     window.addEventListener('resize', postBounds)
     return () => {
       clearInterval(timer)
       clearTimeout(first)
+      clearInterval(regionTimer)
+      clearTimeout(firstRegion)
       window.removeEventListener('resize', postBounds)
       if (observer !== null) observer.disconnect()
     }

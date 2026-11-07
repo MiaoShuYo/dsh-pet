@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-11-07
+
+### Changed
+
+- Removed the dark rectangular window background from the visible result.
+  The React layer now reports the pet SVG alpha mask and the plaque, bubble,
+  task and settings rectangles; the host applies a Win32 window region so only
+  those pixels are visible. The pet now floats without a black frame.
+- The window still resizes to the reported UI bounds and stays anchored at the
+  bottom-right.
+
 ## [0.7.6] - 2026-11-07
 
 ### Fixed

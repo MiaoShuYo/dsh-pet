@@ -14,6 +14,7 @@ try {
   Add-Type -AssemblyName WindowsBase
   Add-Type -AssemblyName System.Drawing
   Add-Type -AssemblyName System.Windows.Forms
+  Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);' -Name Win32 -Namespace DshPet -PassThru | Out-Null
 
   $source = Join-Path $PSScriptRoot 'webview2'
   $baseDir = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview2'
@@ -91,6 +92,47 @@ try {
       $script:WebView.CoreWebView2.add_WebMessageReceived({
         try {
           $message = $args[1].WebMessageAsJson | ConvertFrom-Json
+          if ($message.type -eq 'dsh-pet-regions') {
+            $handle = (New-Object System.Windows.Interop.WindowInteropHelper($script:Window)).Handle
+            if ($handle -ne [IntPtr]::Zero) {
+              $dpi = [System.Windows.Media.VisualTreeHelper]::GetDpi($script:Window)
+              $scale = $dpi.DpiScaleX
+              $topOffset = 22.0
+              $region = New-Object System.Drawing.Region
+              $region.MakeEmpty()
+              $pet = $message.pet
+              if ($null -ne $message.runs -and $message.runs.Count -gt 0) {
+                foreach ($run in $message.runs) {
+                  $x = [int](($pet.x + [double]$run[0]) * $scale)
+                  $y = [int](($pet.y + $topOffset + [double]$run[1]) * $scale)
+                  $w = [Math]::Max(1, [int]([double]$run[2] * $scale))
+                  $h = [Math]::Max(1, [int]$scale)
+                  $region.Union([System.Drawing.Rectangle]::new($x, $y, $w, $h)) | Out-Null
+                }
+              } elseif ($null -ne $pet) {
+                $x = [int]([double]$pet.x * $scale)
+                $y = [int](([double]$pet.y + $topOffset) * $scale)
+                $w = [Math]::Max(1, [int]([double]$pet.w * $scale))
+                $h = [Math]::Max(1, [int]([double]$pet.h * $scale))
+                $region.Union([System.Drawing.Rectangle]::new($x, $y, $w, $h)) | Out-Null
+              }
+              if ($null -ne $message.boxes) {
+                foreach ($box in $message.boxes) {
+                  $x = [int]([double]$box.x * $scale)
+                  $y = [int](([double]$box.y + $topOffset) * $scale)
+                  $w = [Math]::Max(1, [int]([double]$box.w * $scale))
+                  $h = [Math]::Max(1, [int]([double]$box.h * $scale))
+                  $region.Union([System.Drawing.Rectangle]::new($x, $y, $w, $h)) | Out-Null
+                }
+              }
+              $graphics = [System.Drawing.Graphics]::FromHwnd($handle)
+              $hRgn = $region.GetHrgn($graphics)
+              [DshPet.Win32]::SetWindowRgn($handle, $hRgn, $true) | Out-Null
+              $graphics.Dispose()
+              $region.Dispose()
+            }
+            return
+          }
           if ($message.type -ne 'dsh-pet-bounds') { return }
           $targetWidth = [Math]::Max(200, [Math]::Min(520, [int]$message.width))
           $targetHeight = [Math]::Max(180, [Math]::Min(820, ([int]$message.height + 22)))
