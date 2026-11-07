@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-07
+
+### Fixed
+
+- Fixed the desktop pet not opening in the **DSH Desktop app**. The renderer
+  location is `dsh-app://app/`, which WebView2 cannot load. The host now builds
+  the authenticated HTTP URL from `ctx.webServer.getOrigin()` and
+  `ctx.connection.authenticatedUrl()` instead of using `location.href`.
+- Added `/diag` for checking the resolved WebView2 target without exposing the
+  token.
+
 ## [0.7.2] - 2026-11-07
 
 ### Fixed
