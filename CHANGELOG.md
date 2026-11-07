@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-07
+
+### Changed
+
+- The desktop window is now truly transparent: WPF
+  `AllowsTransparency=true` with a transparent window background, a transparent
+  WebView2 default background, and a transparent desktop-mode page background.
+- Removed the chroma-key capture path; the pet, bubble, plaque and panel no
+  longer have a black body behind them.
+
 ## [0.7.9] - 2026-11-07
 
 ### Fixed

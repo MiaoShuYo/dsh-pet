@@ -15,56 +15,6 @@ try {
   Add-Type -AssemblyName System.Drawing
   Add-Type -AssemblyName System.Windows.Forms
   Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);' -Name Win32 -Namespace DshPet -PassThru | Out-Null
-  $chromaCode = @'
-using System;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
-
-public static class DshPetChroma {
-  [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
-  [DllImport("gdi32.dll")] private static extern int CombineRgn(IntPtr dest, IntPtr src1, IntPtr src2, int mode);
-  [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr handle);
-
-  public static IntPtr Build(Bitmap bitmap, int topOffset) {
-    IntPtr total = CreateRectRgn(0, 0, 0, 0);
-    bool any = false;
-    BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-    try {
-      byte[] bytes = new byte[data.Stride * data.Height];
-      Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
-      for (int y = 0; y < bitmap.Height; y++) {
-        int row = y * data.Stride;
-        int start = -1;
-        for (int x = 0; x <= bitmap.Width; x++) {
-          bool transparent = true;
-          if (x < bitmap.Width) {
-            int i = row + (x * 4);
-            int b = bytes[i];
-            int g = bytes[i + 1];
-            int r = bytes[i + 2];
-            transparent = (r > 235 && g < 25 && b > 235);
-          }
-          if (!transparent && start < 0) start = x;
-          else if (transparent && start >= 0) {
-            IntPtr rect = CreateRectRgn(start, y + topOffset, x, y + topOffset + 1);
-            CombineRgn(total, total, rect, 2);
-            DeleteObject(rect);
-            any = true;
-            start = -1;
-          }
-        }
-      }
-    } finally {
-      bitmap.UnlockBits(data);
-    }
-    if (!any) { DeleteObject(total); return IntPtr.Zero; }
-    return total;
-  }
-}
-'@
-  Add-Type -TypeDefinition $chromaCode -ReferencedAssemblies System.Drawing | Out-Null
-
   $source = Join-Path $PSScriptRoot 'webview2'
   $baseDir = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview2'
   $dllDir = Join-Path $baseDir ('run-' + $PID)
@@ -101,8 +51,8 @@ public static class DshPetChroma {
   $script:Window.Height = 760
   $script:Window.WindowStyle = 'None'
   $script:Window.ResizeMode = 'NoResize'
-  $script:Window.AllowsTransparency = $false
-  $script:Window.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#ff00ff')
+  $script:Window.AllowsTransparency = $true
+  $script:Window.Background = [System.Windows.Media.Brushes]::Transparent
   $script:Window.Topmost = $true
   $script:Window.ShowInTaskbar = $false
   $script:Window.Title = 'DSH Pet'
@@ -126,55 +76,12 @@ public static class DshPetChroma {
   $grid.Children.Add($drag) | Out-Null
 
   $script:WebView = New-Object Microsoft.Web.WebView2.Wpf.WebView2
-  $script:WebView.DefaultBackgroundColor = [System.Drawing.Color]::Magenta
+  $script:WebView.DefaultBackgroundColor = [System.Drawing.Color]::FromArgb(0, 0, 0, 0)
   $creation = New-Object Microsoft.Web.WebView2.Wpf.CoreWebView2CreationProperties
   $creation.UserDataFolder = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview-profile'
   $script:WebView.CreationProperties = $creation
   [System.Windows.Controls.Grid]::SetRow($script:WebView, 1)
   $grid.Children.Add($script:WebView) | Out-Null
-
-  $script:CaptureActive = $false
-  $script:CaptureTask = $null
-  $script:CaptureStream = $null
-  $script:CaptureTimer = New-Object System.Windows.Threading.DispatcherTimer
-  $script:CaptureTimer.Interval = [TimeSpan]::FromMilliseconds(900)
-  $script:CaptureTimer.Add_Tick({
-    try {
-      if ($null -ne $script:CaptureTask) {
-        if (-not $script:CaptureTask.IsCompleted) { return }
-        $task = $script:CaptureTask
-        $stream = $script:CaptureStream
-        $script:CaptureTask = $null
-        $script:CaptureStream = $null
-        if ($task.IsFaulted -or $task.IsCanceled -or $null -eq $stream) { return }
-        $stream.Position = 0
-        $bitmap = New-Object System.Drawing.Bitmap($stream)
-        $dpi = [System.Windows.Media.VisualTreeHelper]::GetDpi($script:Window)
-        $top = [int](22 * $dpi.DpiScaleY)
-        $hRgn = [DshPetChroma]::Build($bitmap, $top)
-        $bitmap.Dispose()
-        if ($hRgn -ne [IntPtr]::Zero) {
-          $handle = (New-Object System.Windows.Interop.WindowInteropHelper($script:Window)).Handle
-          if ($handle -ne [IntPtr]::Zero) {
-            [DshPet.Win32]::SetWindowRgn($handle, $hRgn, $true) | Out-Null
-            $script:CaptureActive = $true
-          }
-        }
-        return
-      }
-      if ($null -eq $script:WebView.CoreWebView2) { return }
-      $stream = New-Object System.IO.MemoryStream
-      $script:CaptureStream = $stream
-      $script:CaptureTask = $script:WebView.CoreWebView2.CapturePreviewAsync(
-        [Microsoft.Web.WebView2.Core.CoreWebView2CapturePreviewImageFormat]::Png,
-        $stream
-      )
-    } catch {
-      $script:CaptureTask = $null
-      $script:CaptureStream = $null
-    }
-  })
-  $script:CaptureTimer.Start()
 
   $script:WebView.add_CoreWebView2InitializationCompleted({
     try {
@@ -204,7 +111,6 @@ public static class DshPetChroma {
             $script:Dragging = $false
             return
           }
-          if ($message.type -eq 'dsh-pet-regions' -and $script:CaptureActive) { return }
           if ($message.type -eq 'dsh-pet-regions') {
             $handle = (New-Object System.Windows.Interop.WindowInteropHelper($script:Window)).Handle
             if ($handle -ne [IntPtr]::Zero) {
