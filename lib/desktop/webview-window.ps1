@@ -44,6 +44,9 @@ try {
   Add-Type -Path (Join-Path $dllDir 'Microsoft.Web.WebView2.Wpf.dll')
 
   $script:LaunchUrl = $LaunchUrl
+  $script:Dragging = $false
+  $script:DragOffsetX = 0.0
+  $script:DragOffsetY = 0.0
   $script:Window = New-Object System.Windows.Window
   $script:Window.Width = 420
   $script:Window.Height = 760
@@ -92,6 +95,23 @@ try {
       $script:WebView.CoreWebView2.add_WebMessageReceived({
         try {
           $message = $args[1].WebMessageAsJson | ConvertFrom-Json
+          if ($message.type -eq 'dsh-pet-window-drag-start') {
+            $script:DragOffsetX = [double]$message.screenX - $script:Window.Left
+            $script:DragOffsetY = [double]$message.screenY - $script:Window.Top
+            $script:Dragging = $true
+            return
+          }
+          if ($message.type -eq 'dsh-pet-window-drag-move') {
+            if ($script:Dragging) {
+              $script:Window.Left = [double]$message.screenX - $script:DragOffsetX
+              $script:Window.Top = [double]$message.screenY - $script:DragOffsetY
+            }
+            return
+          }
+          if ($message.type -eq 'dsh-pet-window-drag-end') {
+            $script:Dragging = $false
+            return
+          }
           if ($message.type -eq 'dsh-pet-regions') {
             $handle = (New-Object System.Windows.Interop.WindowInteropHelper($script:Window)).Handle
             if ($handle -ne [IntPtr]::Zero) {

@@ -359,6 +359,15 @@ function PetAnchor(props) {
   const clickTimer = React.useRef(null)
   const lastClick = React.useRef(0)
   const [, setPressed] = React.useState(false)
+  const postDesktopDrag = (type, event) => {
+    if (props.desktopMode !== true) return
+    try {
+      const bridge = window.chrome && window.chrome.webview
+      if (bridge && typeof bridge.postMessage === 'function') {
+        bridge.postMessage({ type, screenX: event.screenX, screenY: event.screenY })
+      }
+    } catch (_error) { /* bridge unavailable */ }
+  }
 
   React.useEffect(() => () => {
     if (clickTimer.current !== null) clearTimeout(clickTimer.current)
@@ -368,6 +377,13 @@ function PetAnchor(props) {
     if (event.button !== undefined && event.button !== 0) return
     if (event.currentTarget.setPointerCapture !== undefined) {
       try { event.currentTarget.setPointerCapture(event.pointerId) } catch (_error) { /* ignore */ }
+    }
+    if (props.desktopMode === true) {
+      pointer.current = { x: event.clientX, y: event.clientY, moved: false, desktop: true }
+      setPressed(true)
+      actions.markActivity()
+      postDesktopDrag('dsh-pet-window-drag-start', event)
+      return
     }
     pointer.current = {
       x: event.clientX,
@@ -382,6 +398,13 @@ function PetAnchor(props) {
   const onPointerMove = (event) => {
     const state = pointer.current
     if (state === null) return
+    if (state.desktop === true) {
+      const dx = event.clientX - state.x
+      const dy = event.clientY - state.y
+      if (!state.moved && Math.abs(dx) + Math.abs(dy) > 4) state.moved = true
+      if (state.moved) postDesktopDrag('dsh-pet-window-drag-move', event)
+      return
+    }
     const dx = event.clientX - state.x
     const dy = event.clientY - state.y
     if (!state.moved && Math.abs(dx) + Math.abs(dy) > 6) state.moved = true
@@ -395,6 +418,7 @@ function PetAnchor(props) {
     if (event !== null && event.currentTarget !== null && event.currentTarget.releasePointerCapture !== undefined) {
       try { event.currentTarget.releasePointerCapture(event.pointerId) } catch (_error) { /* ignore */ }
     }
+    if (state !== null && state.desktop === true) postDesktopDrag('dsh-pet-window-drag-end', event)
     if (state === null || state.moved) return
     const now = Date.now()
     if (now - lastClick.current < 280) {
@@ -403,7 +427,8 @@ function PetAnchor(props) {
         clearTimeout(clickTimer.current)
         clickTimer.current = null
       }
-      props.setPanelOpen(true)
+      if (props.desktopMode === true) actions.focusDsh()
+      else props.setPanelOpen(true)
       return
     }
     lastClick.current = now

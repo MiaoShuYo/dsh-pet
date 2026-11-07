@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.8] - 2026-11-07
+
+### Fixed
+
+- Dragging the pet in the desktop window now moves the **native window** via
+  `WebMessage` events instead of changing the pet's internal absolute position.
+  Previously the pet could slide outside the window region while moving,
+  leaving black areas. Window and region now move together.
+
 ## [0.7.7] - 2026-11-07
 
 ### Changed

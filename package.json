@@ -1,6 +1,6 @@
 {
   "name": "dsh-pet",
-  "version": "0.7.7",
+  "version": "0.7.8",
   "private": true,
   "description": "A Windows desktop pet for DeepSeek Harness: always-on-top pet, live tasks, balance/token plaque, native settings and double-click to open DSH.",
   "type": "module",
