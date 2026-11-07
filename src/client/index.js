@@ -52,6 +52,7 @@ export function apply(ctx) {
     focusAction: (action) => { store.focusAction(action) },
     openDesktopWindow: () => { void store.openDesktopWindow() },
     closeDesktopWindow: () => { void store.closeDesktopWindow() },
+    focusDsh: () => { void store.focusDsh() },
     resetPosition: () => { store.resetPosition() },
     markActivity: () => { store.markActivity() },
     translate: (key, params) => store.translate(key, params),

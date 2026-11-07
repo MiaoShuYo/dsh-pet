@@ -26,6 +26,31 @@ body[data-ds-dark-theme] .dshp-root {
   --dshp-accent: #6da8ff;
   --dshp-bubble-bg: #10152a;
 }
+body.dshp-desktop-mode {
+  --dshp-fg: #f2f4f8;
+  --dshp-muted: #9aa4b2;
+  --dshp-bg: #1b1b20;
+  --dshp-bg2: #26262d;
+  --dshp-border: #34343d;
+  --dshp-bubble-bg: #10152a;
+  --dshp-accent: #6da8ff;
+  background: #0c0c0e !important;
+  color: #f2f4f8;
+  overflow: hidden !important;
+}
+body.dshp-desktop-mode .dshp-root,
+body.dshp-desktop-mode .dshp-panel {
+  --dshp-fg: #f2f4f8;
+  --dshp-muted: #9aa4b2;
+  --dshp-bg: #1b1b20;
+  --dshp-bg2: #26262d;
+  --dshp-border: #34343d;
+  --dshp-bubble-bg: #10152a;
+  --dshp-accent: #6da8ff;
+}
+body.dshp-desktop-mode > *:not(.dshp-anchor):not(.dshp-panel):not(.dshp-root) {
+  display: none !important;
+}
 .dshp-anchor {
   position: fixed;
   z-index: 2147483000;

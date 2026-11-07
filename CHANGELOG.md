@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-07
+
+### Changed
+
+- Replaced the WPF-recreated pet/settings UI with the **exact React UI** running
+  in a separate Edge app window. The host opens the DSH Web GUI through a
+  loopback wrapper, sets `window.name`, and the client hides the DSH chrome and
+  renders the original pet, task card and settings panel.
+- The desktop window is launched automatically after the first state push, is
+  marked with the current session, set topmost, and double-click focuses the
+  main DSH window.
+- Removed the old in-app rendering path; the normal DSH page is headless.
+- Settings, skins, alerts, focus and data screens are now pixel-identical to
+  the in-app React panel.
+
 ## [0.5.2] - 2026-11-01
 
 ### Changed

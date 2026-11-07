@@ -476,7 +476,8 @@ function PetAnchor(props) {
             clearTimeout(clickTimer.current)
             clickTimer.current = null
           }
-          props.setPanelOpen(true)
+          if (props.desktopMode === true) actions.focusDsh()
+          else props.setPanelOpen(true)
         },
       },
       uiH(Mascot, { skin: snap.skin, state: snap.state }),
@@ -1130,16 +1131,143 @@ function SettingsPanel(props) {
 }
 
 /**
- * Headless overlay entry. The pet lives in the Windows desktop window; the
- * Web Client only forwards session status to the store so the native companion
- * and the desktop bridge stay current. No in-app pet is rendered.
+ * Root overlay entry. In the normal DSH page it is headless and only forwards
+ * session status. In the separate desktop-router window (`?dsh-pet-desktop=1`)
+ * it renders the original React pet/settings UI, giving the desktop window the
+ * exact same layout as the in-app version.
  * @param props - slot props plus the injected pet face.
- * @returns null.
+ * @returns React node or null.
  */
 export function PetLayer(props) {
+  let desktopMode = false
+  try {
+    const windowName = window.name || ''
+    desktopMode = windowName.includes('dsh-pet-desktop=1')
+      || new URLSearchParams(window.location.search).get('dsh-pet-desktop') === '1'
+      || window.location.hash.includes('dsh-pet-desktop=1')
+      || (window.innerWidth <= 480 && window.innerHeight <= 820)
+  } catch (_error) { /* non-browser */ }
+  const snap = props.usePet(selector => selector)
   const statuses = props.useSessionStatus(selector => selector)
+  const [panelOpen, setPanelOpen] = React.useState(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
+  const anchorRef = React.useRef(null)
+  const panelRef = React.useRef(null)
+
   React.useEffect(() => {
     props.onStatuses(statuses)
   }, [statuses, props.onStatuses])
-  return null
+
+  React.useEffect(() => {
+    if (!panelOpen && !menuOpen) return undefined
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        setPanelOpen(false)
+        setMenuOpen(false)
+      }
+    }
+    const onDown = (event) => {
+      const target = event.target
+      if (panelRef.current !== null && panelRef.current.contains(target)) {
+        if (menuOpen) setMenuOpen(false)
+        return
+      }
+      if (anchorRef.current !== null && anchorRef.current.contains(target)) return
+      setPanelOpen(false)
+      setMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onDown, true)
+    }
+  }, [panelOpen, menuOpen])
+
+  React.useEffect(() => {
+    if (!desktopMode) return undefined
+    document.body.classList.add('dshp-desktop-mode')
+    document.title = 'DSH Pet'
+    const width = window.innerWidth
+    const height = window.innerHeight
+    const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
+    const border = Math.max(0, (window.outerWidth - width) / 2)
+    const chrome = Math.max(0, window.outerHeight - height)
+    props.setPosition({
+      x: window.screenX + border + width - size - 16,
+      y: window.screenY + chrome + height - size - 100,
+    })
+    if (!snap.prefs.visible) props.setPrefs({ visible: true })
+    try {
+      const nameParams = new URLSearchParams(window.name || '')
+      const targetSession = new URLSearchParams(window.location.search).get('dsh-pet-session')
+        || new URLSearchParams(window.location.hash.replace(/^#/, '')).get('dsh-pet-session')
+        || nameParams.get('dsh-pet-session')
+      if (targetSession !== null && targetSession !== '') props.openSession(targetSession)
+      const rawPrefs = nameParams.get('dsh-pet-prefs')
+      const initialized = localStorage.getItem('dsh-pet:desktop-initialized') === '1'
+      if (!initialized && rawPrefs !== null && rawPrefs !== '') {
+        try {
+          const importedPrefs = JSON.parse(rawPrefs)
+          delete importedPrefs.position
+          delete importedPrefs.desktopWindow
+          props.setPrefs(importedPrefs)
+          localStorage.setItem('dsh-pet:desktop-initialized', '1')
+        } catch (_error) { /* ignore malformed bootstrap prefs */ }
+      }
+    } catch (_error) { /* no session/prefs query */ }
+    return () => { document.body.classList.remove('dshp-desktop-mode') }
+  }, [desktopMode])
+
+  if (!desktopMode) return null
+
+  const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
+  const setPanel = (value) => {
+    if (value === false) {
+      setPanelOpen(false)
+      return
+    }
+    setMenuOpen(false)
+    setPanelOpen(true)
+  }
+  if (!snap.prefs.visible || snap.layout.visible === false) {
+    return mountLayer(uiH(PetHandle, {
+      snap,
+      actions: props,
+      offscreen: snap.layout.visible === false,
+      desktop: false,
+    }))
+  }
+  return mountLayer(uiH(React.Fragment, null,
+    uiH(PetAnchor, {
+      snap,
+      actions: props,
+      size,
+      anchorRef,
+      menuOpen,
+      setMenuOpen,
+      setPanelOpen: setPanel,
+      desktopMode: true,
+    }),
+    panelOpen
+      ? uiH(SettingsPanel, {
+        snap,
+        actions: props,
+        size,
+        panelRef,
+        onClose: () => { setPanelOpen(false) },
+      })
+      : null))
+}
+
+/**
+ * Mount the overlay at body level so DSH chat cards, side panels and their
+ * stacking contexts cannot clip or cover the pet.
+ * @param node - React node.
+ * @returns React portal or the node when no body is available.
+ */
+function mountLayer(node) {
+  if (typeof createPortal !== 'function') return node
+  if (typeof document === 'undefined' || document.body === null || document.body === undefined) return node
+  return createPortal(node, document.body)
 }

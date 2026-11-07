@@ -497,6 +497,8 @@ export class PetStore {
         : null,
       focusLabel: snap.focus !== null && snap.focus.phase !== 'idle' ? snap.focus.clock : '',
       petVersion: PET_VERSION,
+      guiUrl: typeof location !== 'undefined' ? location.href : '',
+      sessionId: snap.session !== null && snap.session.id !== undefined ? snap.session.id : '',
       tokens: snap.session !== null && snap.session.tokens !== null ? snap.session.tokens.total : 0,
       contextPercent: snap.contextPercent === null ? -1 : snap.contextPercent,
       todayTokens: snap.stats !== null && snap.stats !== undefined ? snap.stats.tokens : 0,
@@ -565,6 +567,12 @@ export class PetStore {
     } catch (_error) { /* the helper may already be gone */ }
     this.desktopStatus = false
     this.setPrefs({ desktopWindow: false, visible: true })
+  }
+
+  /** Focus the main DSH window from the separate desktop router window. */
+  async focusDsh() {
+    if (typeof fetch !== 'function') return
+    try { await fetch(this.desktopUrl('/focus'), { method: 'POST' }) } catch (_error) { /* host not ready */ }
   }
 
   /**

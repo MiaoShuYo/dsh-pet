@@ -1,8 +1,9 @@
 # Manual QA
 
 Run `npm run check && npm test` first. Then install the plugin into a disposable
-Windows DSH desktop profile and verify the matrix below. The pet is a native
-WPF companion now; it should not render inside the DSH page.
+Windows DSH desktop profile and verify the matrix below. The pet is a separate
+Edge desktop window running the same React UI; it should not render inside the
+main DSH page.
 
 ## Setup
 
