@@ -34,6 +34,17 @@ import {
 } from './effects.js'
 
 const IDEA_KEYS = ['bubble.idle1', 'bubble.idle2', 'bubble.idle3', 'bubble.idle4', 'bubble.idle5']
+
+/** Compact elapsed time for a running subagent task row. */
+function formatElapsed(ms) {
+  const seconds = Math.max(0, Math.floor(Number(ms) / 1000))
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ${String(minutes % 60).padStart(2, '0')}m`
+}
+
 const DEMO_TASKS = [
   { id: 'demo-task-1', label: '创建 V1.6.4 分支', status: 'running', progress: '正在运行命令', kind: 'bash', source: 'job', toolName: '', command: false, startedAt: 1 },
   { id: 'demo-task-2', label: '运行单元测试', status: 'running', progress: 'pwsh · 12s', kind: 'bash', source: 'job', toolName: '', command: false, startedAt: 2 },
@@ -132,6 +143,7 @@ export class PetStore {
     this.jobsUnsub = null
     this.jobReleases = new Map()
     this.jobTasks = []
+    this.subagentTasks = []
     this.toolCalls = new Map()
     this.tasks = []
     this.account = {
@@ -443,6 +455,8 @@ export class PetStore {
       const bySession = snapshot !== null && snapshot !== undefined ? snapshot.rows : null
       if (bySession !== null && bySession !== undefined && typeof bySession === 'object') {
         for (const [sessionId, rows] of Object.entries(bySession)) {
+          const summary = this.ctx.sessions.list.getSnapshot().byId[sessionId]
+          if (summary !== undefined && summary.origin === 'subagent') continue
           const title = this.sessionTitle(sessionId)
           const background = this.currentId === null || String(this.currentId) !== String(sessionId)
           for (const task of tasksFromJobs(rows)) {
@@ -464,6 +478,68 @@ export class PetStore {
   }
 
   /**
+   * Project live subagent child sessions into pet tasks. Session summaries
+   * carry the child activity, token usage and subagent timing; no child event
+   * stream is opened here.
+   * @returns undefined
+   */
+  syncSubagents() {
+    const sessions = this.ctx.sessions
+    const list = sessions !== null && sessions !== undefined && sessions.list !== undefined
+      ? sessions.list.getSnapshot()
+      : null
+    const byId = list !== null && list.byId !== undefined ? list.byId : {}
+    const now = this.now()
+    const next = []
+    for (const [sessionId, row] of Object.entries(byId)) {
+      if (row === null || row === undefined || row.origin !== 'subagent' || row.running !== true) continue
+      const values = row.projectionValues !== null && row.projectionValues !== undefined ? row.projectionValues : {}
+      const subagent = values.subagent !== null && values.subagent !== undefined ? values.subagent : {}
+      const timing = values.subagentTiming !== null && values.subagentTiming !== undefined ? values.subagentTiming : {}
+      const active = timing.active !== null && timing.active !== undefined ? timing.active : null
+      const startedAt = active !== null && Number.isFinite(Number(active.since))
+        ? Number(active.since)
+        : Number.isFinite(Number(row.updatedAt)) ? Number(row.updatedAt) : now
+      const elapsed = (Number.isFinite(Number(timing.settledMs)) ? Number(timing.settledMs) : 0)
+        + (active !== null && Number.isFinite(Number(active.since)) ? Math.max(0, now - Number(active.since)) : 0)
+      const usage = values.tokenUsage
+      const tokens = usage === null || usage === undefined ? 0 : totalTokens(usage)
+      const parent = row.parentSessionId === undefined || row.parentSessionId === null
+        ? null
+        : byId[row.parentSessionId]
+      const parentTitle = parent !== null && parent !== undefined
+        ? parent.displayTitle || parent.title || String(row.parentSessionId)
+        : ''
+      const childTitle = row.displayTitle || row.title || String(sessionId)
+      const label = typeof subagent.label === 'string' && subagent.label.trim() !== ''
+        ? subagent.label.trim()
+        : values.title || childTitle
+      const progress = tokens > 0
+        ? `${formatElapsed(elapsed)} · ${formatCompactNumber(tokens)} tok`
+        : formatElapsed(elapsed)
+      next.push({
+        id: `subagent-${sessionId}`,
+        label,
+        status: 'running',
+        progress,
+        kind: 'subagent',
+        source: 'subagent',
+        toolName: '',
+        command: false,
+        startedAt,
+        sessionId: String(sessionId),
+        sessionTitle: parentTitle,
+        background: true,
+      })
+    }
+    const sorted = sortTasks(next)
+    if (!sameTasks(this.subagentTasks, sorted)) {
+      this.subagentTasks = sorted
+      this.rebuildTasks()
+    }
+  }
+
+  /**
    * Merge job tasks and live tool calls into the task list.
    * @returns undefined
    */
@@ -475,7 +551,7 @@ export class PetStore {
       sessionTitle,
       background: false,
     }))
-    const next = sortTasks([...this.jobTasks, ...toolTasks])
+    const next = sortTasks([...this.jobTasks, ...this.subagentTasks, ...toolTasks])
     if (!sameTasks(this.tasks, next)) {
       this.tasks = next
       this.publish()
@@ -702,6 +778,7 @@ export class PetStore {
     }
     this.consumeSummary(list)
     this.syncJobWatchers()
+    this.syncSubagents()
     this.publish()
   }
 
@@ -1264,6 +1341,7 @@ export class PetStore {
     if (this.disposed) return
     const now = this.now()
     this.syncFrame()
+    this.syncSubagents()
     let changed = false
     if (this.bubble !== null && isBubbleExpired(this.bubble, now)) {
       this.bubble = null

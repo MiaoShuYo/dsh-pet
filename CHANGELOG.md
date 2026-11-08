@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-08
+
+### Added
+
+- Running **subagents** now appear in the pet task card. Each row shows the
+  subagent label, parent session, live elapsed time and token usage.
+- Subagent rows come from session-list `subagentTiming`/`tokenUsage`; they
+  disappear when the child stops running.
+- Jobs owned by subagent sessions are folded into the subagent row instead of
+  duplicating a separate job entry.
+
 ## [0.9.0] - 2026-11-08
 
 ### Added

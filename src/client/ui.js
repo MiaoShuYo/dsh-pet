@@ -345,7 +345,10 @@ function PetTasks(props) {
         ? task.progress
         : task.command === true ? t('tasks.command') : t('tasks.running')),
   task.background === true
-    ? uiH('span', { className: 'dshp-task-session' }, task.sessionTitle || t('tasks.background'))
+    ? uiH('span', { className: 'dshp-task-session' },
+      task.source === 'subagent'
+        ? `${t('tasks.subagent')} · ${task.sessionTitle || t('tasks.background')}`
+        : (task.sessionTitle || t('tasks.background')))
     : null)),
   tasks.length > visible.length
     ? uiH('div', { className: 'dshp-task-more' }, t('tasks.more', { count: tasks.length - visible.length }))
