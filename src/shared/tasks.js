@@ -147,7 +147,9 @@ export function sameTasks(left, right) {
     const a = left[index]
     const b = right[index]
     if (a.id !== b.id || a.label !== b.label || a.status !== b.status
-      || a.progress !== b.progress || a.source !== b.source || a.command !== b.command) return false
+      || a.progress !== b.progress || a.source !== b.source || a.command !== b.command
+      || a.sessionId !== b.sessionId || a.sessionTitle !== b.sessionTitle
+      || a.background !== b.background) return false
   }
   return true
 }

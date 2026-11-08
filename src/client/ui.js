@@ -332,7 +332,10 @@ function PetTasks(props) {
     className: 'dshp-task',
     'data-status': task.status,
     'data-source': task.source,
-    title: task.label,
+    'data-background': task.background === true ? 'true' : 'false',
+    title: task.background === true && task.sessionTitle !== undefined && task.sessionTitle !== ''
+      ? `${task.sessionTitle} · ${task.label}`
+      : task.label,
   },
   uiH('span', { className: 'dshp-task-label' }, task.label),
   uiH('span', { className: 'dshp-task-status' },
@@ -340,7 +343,10 @@ function PetTasks(props) {
       ? t('tasks.stopping')
       : task.progress !== ''
         ? task.progress
-        : task.command === true ? t('tasks.command') : t('tasks.running')))),
+        : task.command === true ? t('tasks.command') : t('tasks.running')),
+  task.background === true
+    ? uiH('span', { className: 'dshp-task-session' }, task.sessionTitle || t('tasks.background'))
+    : null)),
   tasks.length > visible.length
     ? uiH('div', { className: 'dshp-task-more' }, t('tasks.more', { count: tasks.length - visible.length }))
     : null)

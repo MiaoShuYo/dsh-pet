@@ -16,7 +16,7 @@
 
 - **纯桌面宠物**：DSH 页面里不再渲染任何宠物或设置面板；重启 Host 后自动启动独立置顶窗口。
 - **拖动与双击**：拖动宠物移动窗口；**双击宠物打开/聚焦 DSH**。
-- **任务卡**：当前会话的后台 job 与同步工具调用显示在宠物上方；标题优先取 `description`，其次命令首行。
+- **任务卡**：当前会话与所有后台会话的 job 实时显示在宠物上方；后台任务带会话标题；标题优先取 `description`，其次命令首行。
 - **状态牌**：余额 · 本会话 token · 上下文百分比，数据来自 DSH 既有 projection/Remote。
 - **与 DSH 内完全相同的设置面板**：独立窗口直接运行同一套 React 桌宠 UI（状态/外观/提醒/专注/数据），不是 WPF 重绘；右键宠物 → 设置。
 - **外观**：三套内置皮肤、大小、不透明度、状态牌/任务列表开关、名字、语言。
@@ -40,13 +40,13 @@
 ### 方式 A：GitHub Release 预构建包（最稳）
 
 ```bash
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.8.1/dsh-pet-0.8.1.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.9.0/dsh-pet-0.9.0.tgz
 ```
 
 ### 方式 B：直接从 GitHub 安装
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.8.1
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.9.0
 ```
 
 `lib/client.js` 已提交到仓库，因此不需要在安装时执行构建脚本，也不需要 pnpm 的 `allowBuilds` 授权。Windows 独立窗口的 PowerShell helper 与宠物 PNG 已包含在包内，使用系统自带的 Windows PowerShell，不需要另外安装 Electron 或运行时。
@@ -91,7 +91,7 @@ dsh plugin --profile web add ./
   - 专注：番茄钟、休息、喝水
   - 数据：每日统计开关、今日 token/余额变化、重置统计、演示状态
   - 桌面：余额刷新间隔、复位位置、打开 DSH、导入/导出设置
-- **任务卡**：当前会话有任务时显示，最多 3 条；任务结束自动消失。
+- **任务卡**：当前会话任务和其他会话的后台任务实时显示，最多 3 条；后台任务会标注会话标题，任务结束自动消失。
 - **隐藏/退出**：右键 → 隐藏到托盘；托盘菜单可退出。
 
 ### 数据来源
@@ -102,7 +102,7 @@ dsh plugin --profile web add ./
 | 本会话 token | Session projection `tokenUsage`（四类桶） |
 | 上下文占用 | Session projection `contextPressure`（`projectedTokens`/`pressureTokens` ÷ `contextWindow`） |
 | token 构成 | Session projection `contextBreakdown`（system / tools / messages） |
-| 进行中的任务 | `ctx.jobs` 的 `job.list` 任务流 + 当前会话事件流中的 `tool/call` / `tool/result`（标题取 `arguments.description` 或命令首行） |
+| 进行中的任务 | 所有会话的 `ctx.jobs` 任务流（含后台会话）+ 当前会话事件流中的 `tool/call` / `tool/result`（标题取 `arguments.description` 或命令首行） |
 | 轮次/等待/完成 | Client `useSessionStatus`（running / pendingInteraction / completionUnread） |
 | 今日统计 | 本机 localStorage 中的累计差值 |
 
@@ -184,17 +184,17 @@ docs/            skins.md、QA.md、preview.svg
 4. 发布版本：
 
 ```bash
-git tag v0.8.1
-git push origin v0.8.1
+git tag v0.9.0
+git push origin v0.9.0
 ```
 
 release 工作流会：
 
 - 运行 `build` / `check` / `test`；
-- `npm pack` 并把 `dsh-pet-0.8.1.tgz` 挂到 GitHub Release；
+- `npm pack` 并把 `dsh-pet-0.9.0.tgz` 挂到 GitHub Release；
 - 从所有 `v*` tag 生成 `site/index.json` 并部署到 GitHub Pages。
 
-> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.8.1` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
+> 首次手动开启 Pages 时，`github-pages` 环境默认只允许 `main` 部署。如果 Release 工作流提示 “Tag `v0.9.0` is not allowed to deploy to github-pages”，到 Settings → Environments → github-pages → Deployment branches and tags 添加 `v*` tag 规则。本仓库已添加。
 
 也可以本地预览市场索引：
 
@@ -238,9 +238,9 @@ DSH Pet is a **Windows desktop pet** for [DeepSeek Harness](https://github.com/d
 **Install** (repository: `MiaoShuYo/dsh-pet`):
 
 ```bash
-dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.8.1
+dsh plugin --profile web add github:MiaoShuYo/dsh-pet#v0.9.0
 # or a release tarball
-dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.8.1/dsh-pet-0.8.1.tgz
+dsh plugin --profile web add https://github.com/MiaoShuYo/dsh-pet/releases/download/v0.9.0/dsh-pet-0.9.0.tgz
 ```
 
 Restart DSH completely, then enable **dsh-pet** on the Plugins page. The market index is `https://miaoshuyo.github.io/dsh-pet/index.json`.

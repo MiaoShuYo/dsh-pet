@@ -329,6 +329,15 @@ body.dshp-desktop-mode > *:not(.dshp-anchor):not(.dshp-panel):not(.dshp-root) {
 }
 .dshp-task[data-status="stopping"] { border-left-color: var(--dshp-warn); }
 .dshp-task[data-source="tool"] { border-left-color: var(--dshp-ok); }
+.dshp-task[data-background="true"] { border-left-color: var(--dshp-accent); }
+.dshp-task-session {
+  overflow: hidden;
+  color: var(--dshp-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .dshp-task-label {
   overflow: hidden;
   color: var(--dshp-fg);

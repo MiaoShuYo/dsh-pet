@@ -130,7 +130,7 @@ export class PetStore {
     this.workspace = null
     this.jobsApi = null
     this.jobsUnsub = null
-    this.jobRelease = null
+    this.jobReleases = new Map()
     this.jobTasks = []
     this.toolCalls = new Map()
     this.tasks = []
@@ -195,7 +195,7 @@ export class PetStore {
     this.started = true
     const sessions = this.ctx.sessions
     if (sessions !== null && sessions !== undefined && sessions.list !== undefined) {
-      this.listUnsub = sessions.list.subscribe(() => { this.syncSession() })
+      this.listUnsub = sessions.list.subscribe(() => { this.syncSession(); this.syncJobWatchers() })
       this.syncSession()
     }
     const interval = typeof this.ctx.interval === 'function'
@@ -367,7 +367,7 @@ export class PetStore {
     if (state !== null && state !== undefined && typeof state.subscribe === 'function') {
       this.jobsUnsub = state.subscribe(() => { this.syncJobs() })
     }
-    this.watchJobs(this.currentId)
+    this.syncJobWatchers()
     return () => { if (this.jobsApi === jobs) this.detachJobs() }
   }
 
@@ -376,10 +376,10 @@ export class PetStore {
    * @returns undefined
    */
   detachJobs() {
-    if (this.jobRelease !== null) {
-      try { this.jobRelease() } catch (_error) { /* already gone */ }
-      this.jobRelease = null
+    for (const release of this.jobReleases.values()) {
+      try { release() } catch (_error) { /* already gone */ }
     }
+    this.jobReleases.clear()
     if (this.jobsUnsub !== null) {
       try { this.jobsUnsub() } catch (_error) { /* already gone */ }
       this.jobsUnsub = null
@@ -390,42 +390,73 @@ export class PetStore {
   }
 
   /**
-   * Watch one session's job roster.
-   * @param id - session identity, or null.
+   * Keep a roster stream open for every known session, so background jobs in
+   * sessions other than the selected one stay live in the pet task card.
    * @returns undefined
    */
-  watchJobs(id) {
-    if (this.jobRelease !== null) {
-      try { this.jobRelease() } catch (_error) { /* already gone */ }
-      this.jobRelease = null
+  syncJobWatchers() {
+    if (this.jobsApi === null || typeof this.jobsApi.watchRows !== 'function') return
+    const sessions = this.ctx.sessions
+    const list = sessions !== null && sessions !== undefined && sessions.list !== undefined
+      ? sessions.list.getSnapshot()
+      : null
+    const ids = new Set()
+    if (list !== null && Array.isArray(list.ids)) {
+      for (const id of list.ids) ids.add(String(id))
     }
-    this.jobTasks = []
-    if (this.jobsApi !== null && id !== null && typeof this.jobsApi.watchRows === 'function') {
-      try {
-        this.jobRelease = this.jobsApi.watchRows(id)
-      } catch (_error) {
-        this.jobRelease = null
+    if (this.currentId !== null) ids.add(String(this.currentId))
+    for (const [id, release] of this.jobReleases) {
+      if (!ids.has(id)) {
+        try { release() } catch (_error) { /* already gone */ }
+        this.jobReleases.delete(id)
       }
+    }
+    for (const id of ids) {
+      if (this.jobReleases.has(id)) continue
+      try {
+        const release = this.jobsApi.watchRows(id)
+        if (typeof release === 'function') this.jobReleases.set(id, release)
+      } catch (_error) { /* session may not be watchable yet */ }
     }
     this.syncJobs()
     this.rebuildTasks()
   }
 
-  /** Re-project the live job rows for the selected session. */
+  /**
+   * Watch one session's job roster. Kept for call sites that only know the
+   * current session; the watcher set is now shared across all sessions.
+   * @param id - session identity, or null.
+   * @returns undefined
+   */
+  watchJobs(id) {
+    this.syncJobWatchers()
+  }
+
+  /** Re-project live job rows for every watched session. */
   syncJobs() {
-    let rows = []
-    if (this.jobsApi !== null && this.currentId !== null) {
+    const tasks = []
+    if (this.jobsApi !== null) {
       const state = this.jobsApi.state || this.jobsApi.model
       const snapshot = state !== null && state !== undefined && typeof state.getSnapshot === 'function'
         ? state.getSnapshot()
         : null
       const bySession = snapshot !== null && snapshot !== undefined ? snapshot.rows : null
-      if (bySession !== null && bySession !== undefined) {
-        const key = String(this.currentId)
-        if (Array.isArray(bySession[key])) rows = bySession[key]
+      if (bySession !== null && bySession !== undefined && typeof bySession === 'object') {
+        for (const [sessionId, rows] of Object.entries(bySession)) {
+          const title = this.sessionTitle(sessionId)
+          const background = this.currentId === null || String(this.currentId) !== String(sessionId)
+          for (const task of tasksFromJobs(rows)) {
+            tasks.push({
+              ...task,
+              sessionId: String(sessionId),
+              sessionTitle: title,
+              background,
+            })
+          }
+        }
       }
     }
-    const next = tasksFromJobs(rows)
+    const next = sortTasks(tasks)
     if (!sameTasks(this.jobTasks, next)) {
       this.jobTasks = next
       this.rebuildTasks()
@@ -437,7 +468,14 @@ export class PetStore {
    * @returns undefined
    */
   rebuildTasks() {
-    const next = sortTasks([...this.jobTasks, ...this.toolCalls.values()])
+    const sessionTitle = this.currentId === null ? '' : this.sessionTitle(this.currentId)
+    const toolTasks = [...this.toolCalls.values()].map(task => ({
+      ...task,
+      sessionId: this.currentId === null ? '' : String(this.currentId),
+      sessionTitle,
+      background: false,
+    }))
+    const next = sortTasks([...this.jobTasks, ...toolTasks])
     if (!sameTasks(this.tasks, next)) {
       this.tasks = next
       this.publish()
@@ -470,6 +508,9 @@ export class PetStore {
       progress: task.progress,
       source: task.source,
       command: task.command === true,
+      sessionId: task.sessionId || '',
+      sessionTitle: task.sessionTitle || '',
+      background: task.background === true,
     }))
     return {
       version: 1,
@@ -660,6 +701,7 @@ export class PetStore {
       this.subscribeSession(id)
     }
     this.consumeSummary(list)
+    this.syncJobWatchers()
     this.publish()
   }
 

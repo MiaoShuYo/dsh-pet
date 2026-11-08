@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-08
+
+### Added
+
+- The pet task card now watches every session's job roster, not just the
+  selected session, so **background tasks** appear live.
+- Background tasks show their session title; the task count includes all
+  sessions.
+- Job watchers are added/removed as the session catalog changes, and every
+  completed/started job updates the card immediately.
+
 ## [0.8.1] - 2026-11-08
 
 ### Changed
