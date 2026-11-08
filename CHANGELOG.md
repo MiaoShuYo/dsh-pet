@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-08
+
+### Changed
+
+- Reworked native window dragging: the helper moves the window and sends
+  drag-move/end messages back to the page; the React layer keeps the pet
+  anchored during the drag and persists its position on release.
+- Panel placement now chooses the side with enough space instead of clipping
+  against the window edge.
+- Updated the bundled WebView2 SDK binaries.
+
 ## [0.8.0] - 2026-11-07
 
 ### Changed

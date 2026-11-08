@@ -76,17 +76,12 @@ body.dshp-desktop-mode > *:not(.dshp-anchor):not(.dshp-panel):not(.dshp-root) {
   border-radius: 18px;
 }
 .dshp-pet:active { cursor: grabbing; }
-.dshp-pet:focus-visible {
-  outline: 2px solid var(--dshp-accent);
-  outline-offset: 4px;
-}
 .dshp-mascot {
   width: 100%;
   height: 100%;
   display: block;
   user-select: none;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18));
   transform-origin: 50% 90%;
 }
 .dshp-image { object-fit: contain; }
@@ -101,7 +96,6 @@ body.dshp-desktop-mode > *:not(.dshp-anchor):not(.dshp-panel):not(.dshp-root) {
 .dshp-pet[data-state="focusing"] .dshp-laptop { animation: dshp-laptop 1.2s ease-in-out infinite; transform-origin: 60px 96px; }
 .dshp-pet[data-state="working"] .dshp-screen-prompt,
 .dshp-pet[data-state="focusing"] .dshp-screen-prompt { animation: dshp-screen-blink 1.6s steps(2, end) infinite; }
-.dshp-pet:hover .dshp-mascot { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.24)); }
 .dshp-tail { animation: dshp-tail 2.2s ease-in-out infinite; }
 .dshp-sparkles { animation: dshp-sparkle 1.2s ease-in-out infinite; }
 .dshp-zzz { animation: dshp-float 3s ease-in-out infinite; }

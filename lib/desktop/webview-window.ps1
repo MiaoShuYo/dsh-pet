@@ -7,14 +7,130 @@ function Write-PetLog([string]$Text) {
     $Text | Set-Content -LiteralPath $logPath -Encoding UTF8
   } catch { }
 }
-
+function Send-PetWebMessage([object]$Message) {
+  try {
+    if ($null -eq $script:WebView -or $null -eq $script:WebView.CoreWebView2) { return }
+    $json = ConvertTo-Json -InputObject $Message -Compress -Depth 4
+    $script:WebView.CoreWebView2.PostWebMessageAsJson($json)
+  } catch { Write-PetLog ("Web message: " + $_.Exception.Message) }
+}
+function Set-PetHitRegion([bool]$FullWindow, [object[]]$Boxes = @()) {
+  try {
+    $handle = (New-Object System.Windows.Interop.WindowInteropHelper($script:Window)).Handle
+    if ($handle -eq [IntPtr]::Zero) { return }
+    $scale = [System.Windows.Media.VisualTreeHelper]::GetDpi($script:Window).DpiScaleX
+    $hRegion = [DshPet.Win32]::CreateRectRgn(0, 0, 0, 0)
+    if ($FullWindow) {
+      $width = [Math]::Max(1, [int][Math]::Ceiling($script:Window.Width * $scale))
+      $height = [Math]::Max(1, [int][Math]::Ceiling($script:Window.Height * $scale))
+      $hBox = [DshPet.Win32]::CreateRectRgn(0, 0, $width, $height)
+      [DshPet.Win32]::CombineRgn($hRegion, $hRegion, $hBox, 2) | Out-Null
+      [DshPet.Win32]::DeleteObject($hBox) | Out-Null
+    } else {
+      foreach ($box in $Boxes) {
+        if ($null -eq $box -or [double]$box.w -lt 1 -or [double]$box.h -lt 1) { continue }
+        $x = [int][Math]::Floor([double]$box.x * $scale)
+        $y = [int][Math]::Floor([double]$box.y * $scale)
+        $right = [Math]::Max($x + 1, [int][Math]::Ceiling(([double]$box.x + [double]$box.w) * $scale))
+        $bottom = [Math]::Max($y + 1, [int][Math]::Ceiling(([double]$box.y + [double]$box.h) * $scale))
+        $hBox = [DshPet.Win32]::CreateRectRgn($x, $y, $right, $bottom)
+        [DshPet.Win32]::CombineRgn($hRegion, $hRegion, $hBox, 2) | Out-Null
+        [DshPet.Win32]::DeleteObject($hBox) | Out-Null
+      }
+    }
+    $applied = [DshPet.Win32]::SetWindowRgn($handle, $hRegion, $false)
+    if ($applied -eq 0) { [DshPet.Win32]::DeleteObject($hRegion) | Out-Null }
+  } catch { Write-PetLog ("Hit-test region: " + $_.Exception.Message) }
+}
+function Send-PetNativeDragPosition {
+  if (-not $script:NativeDragActive) { return }
+  $point = New-Object DshPet.Point
+  if (-not [DshPet.Win32]::GetCursorPos([ref]$point)) { return }
+  $x = $script:DragStartPetX + (($point.X - $script:DragStartCursorX) / $script:DragScale)
+  $y = $script:DragStartPetY + (($point.Y - $script:DragStartCursorY) / $script:DragScale)
+  if ([Math]::Abs($x - $script:DragLastSentX) -lt 0.25 -and [Math]::Abs($y - $script:DragLastSentY) -lt 0.25) { return }
+  $script:DragLastSentX = $x
+  $script:DragLastSentY = $y
+  Send-PetWebMessage @{ type = 'dsh-pet-native-drag-move'; x = $x; y = $y }
+}
+function Stop-PetNativeDrag([bool]$NotifyRenderer = $false, [bool]$CaptureFinalPosition = $false) {
+  $wasActive = $script:NativeDragActive
+  if ($CaptureFinalPosition -and $wasActive) { Send-PetNativeDragPosition }
+  $script:NativeDragActive = $false
+  if ($null -ne $script:DragTimer) {
+    try { $script:DragTimer.Stop() } catch { }
+    $script:DragTimer = $null
+  }
+  if ($script:NativeMouseCaptured) {
+    try { [DshPet.Win32]::ReleaseCapture() | Out-Null } catch { }
+    $script:NativeMouseCaptured = $false
+  }
+  if ($NotifyRenderer -and $wasActive) {
+    Send-PetWebMessage @{ type = 'dsh-pet-native-drag-end' }
+  }
+}
+function Start-PetNativeDrag([object]$Message) {
+  Stop-PetNativeDrag
+  $handle = (New-Object System.Windows.Interop.WindowInteropHelper($script:Window)).Handle
+  if ($handle -eq [IntPtr]::Zero) { return }
+  $cursor = New-Object DshPet.Point
+  if (-not [DshPet.Win32]::GetCursorPos([ref]$cursor)) { return }
+  $script:NativeDragActive = $true
+  $script:DragStartPetX = [double]$Message.screenX
+  $script:DragStartPetY = [double]$Message.screenY
+  $script:DragScale = [Math]::Max(0.5, [System.Windows.Media.VisualTreeHelper]::GetDpi($script:Window).DpiScaleX)
+  $script:DragStartCursorX = if ($null -ne $Message.pointerScreenX) {
+    [double]$Message.pointerScreenX * $script:DragScale
+  } else { [double]$cursor.X }
+  $script:DragStartCursorY = if ($null -ne $Message.pointerScreenY) {
+    [double]$Message.pointerScreenY * $script:DragScale
+  } else { [double]$cursor.Y }
+  $script:DragLastSentX = $script:DragStartPetX
+  $script:DragLastSentY = $script:DragStartPetY
+  Set-PetHitRegion -FullWindow $true
+  [DshPet.Win32]::SetCapture($handle) | Out-Null
+  $script:NativeMouseCaptured = $true
+  $script:DragTimer = New-Object System.Windows.Threading.DispatcherTimer
+  $script:DragTimer.Interval = [TimeSpan]::FromMilliseconds(16)
+  $script:DragTimer.add_Tick({
+    try {
+      if (-not $script:NativeDragActive) { return }
+      if ([DshPet.Win32]::GetAsyncKeyState(0x01) -ge 0) {
+        Stop-PetNativeDrag -NotifyRenderer $true -CaptureFinalPosition $true
+        return
+      }
+      Send-PetNativeDragPosition
+    } catch {
+      Write-PetLog ("Native drag: " + $_.Exception.Message)
+      Stop-PetNativeDrag -NotifyRenderer $true
+    }
+  })
+  $script:DragTimer.Start()
+}
 try {
   Add-Type -AssemblyName PresentationFramework
   Add-Type -AssemblyName PresentationCore
   Add-Type -AssemblyName WindowsBase
   Add-Type -AssemblyName System.Drawing
   Add-Type -AssemblyName System.Windows.Forms
-  Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);' -Name Win32 -Namespace DshPet -PassThru | Out-Null
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace DshPet {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct Point { public int X; public int Y; }
+  public static class Win32 {
+    [DllImport("user32.dll")] public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+    [DllImport("user32.dll")] public static extern IntPtr SetCapture(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ReleaseCapture();
+    [DllImport("user32.dll")] public static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int virtualKey);
+    [DllImport("gdi32.dll")] public static extern bool DeleteObject(IntPtr hObject);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("gdi32.dll")] public static extern int CombineRgn(IntPtr dest, IntPtr src1, IntPtr src2, int mode);
+  }
+}
+'@ | Out-Null
   $source = Join-Path $PSScriptRoot 'webview2'
   $baseDir = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview2'
   $dllDir = Join-Path $baseDir ('run-' + $PID)
@@ -43,12 +159,15 @@ try {
   Add-Type -Path (Join-Path $dllDir 'Microsoft.Web.WebView2.Wpf.dll')
 
   $script:LaunchUrl = $LaunchUrl
-  $script:Dragging = $false
-  $script:DragOffsetX = 0.0
-  $script:DragOffsetY = 0.0
+  $script:NativeDragActive = $false
+  $script:NativeMouseCaptured = $false
+  $script:DragTimer = $null
   $script:Window = New-Object System.Windows.Window
-  $script:Window.Width = 420
-  $script:Window.Height = 760
+  $workArea = [System.Windows.SystemParameters]::WorkArea
+  $script:Window.Left = $workArea.Left
+  $script:Window.Top = $workArea.Top
+  $script:Window.Width = $workArea.Width
+  $script:Window.Height = $workArea.Height
   $script:Window.WindowStyle = 'None'
   $script:Window.ResizeMode = 'NoResize'
   $script:Window.AllowsTransparency = $true
@@ -56,32 +175,13 @@ try {
   $script:Window.Topmost = $true
   $script:Window.ShowInTaskbar = $false
   $script:Window.Title = 'DSH Pet'
-  $area = [System.Windows.SystemParameters]::WorkArea
-  $script:Window.Left = [Math]::Max(0, $area.Right - 440)
-  $script:Window.Top = [Math]::Max(0, $area.Bottom - 800)
 
-  $grid = New-Object System.Windows.Controls.Grid
-  $dragRow = New-Object System.Windows.Controls.RowDefinition
-  $dragRow.Height = [System.Windows.GridLength]::new(22)
-  $contentRow = New-Object System.Windows.Controls.RowDefinition
-  $contentRow.Height = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-  $grid.RowDefinitions.Add($dragRow) | Out-Null
-  $grid.RowDefinitions.Add($contentRow) | Out-Null
-  $script:Window.Content = $grid
-
-  $drag = New-Object System.Windows.Controls.Border
-  $drag.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#01000000')
-  $drag.Add_MouseLeftButtonDown({ try { $script:Window.DragMove() } catch { } })
-  [System.Windows.Controls.Grid]::SetRow($drag, 0)
-  $grid.Children.Add($drag) | Out-Null
-
-  $script:WebView = New-Object Microsoft.Web.WebView2.Wpf.WebView2
+  $script:WebView = New-Object Microsoft.Web.WebView2.Wpf.WebView2CompositionControl
   $script:WebView.DefaultBackgroundColor = [System.Drawing.Color]::FromArgb(0, 0, 0, 0)
   $creation = New-Object Microsoft.Web.WebView2.Wpf.CoreWebView2CreationProperties
   $creation.UserDataFolder = Join-Path $env:LOCALAPPDATA 'dsh-pet\webview-profile'
   $script:WebView.CreationProperties = $creation
-  [System.Windows.Controls.Grid]::SetRow($script:WebView, 1)
-  $grid.Children.Add($script:WebView) | Out-Null
+  $script:Window.Content = $script:WebView
 
   $script:WebView.add_CoreWebView2InitializationCompleted({
     try {
@@ -90,84 +190,22 @@ try {
         Write-PetLog ("WebView2 init failed: " + [string]$eventArgs.InitializationException)
         return
       }
-      if ($script:LaunchUrl -ne '') { $script:WebView.CoreWebView2.Navigate($script:LaunchUrl) }
       $script:WebView.CoreWebView2.add_WebMessageReceived({
         try {
           $message = $args[1].WebMessageAsJson | ConvertFrom-Json
-          if ($message.type -eq 'dsh-pet-window-drag-start') {
-            $script:DragOffsetX = [double]$message.screenX - $script:Window.Left
-            $script:DragOffsetY = [double]$message.screenY - $script:Window.Top
-            $script:Dragging = $true
+          if ($message.type -eq 'dsh-pet-native-drag-start') {
+            Start-PetNativeDrag $message
             return
           }
-          if ($message.type -eq 'dsh-pet-window-drag-move') {
-            if ($script:Dragging) {
-              $script:Window.Left = [double]$message.screenX - $script:DragOffsetX
-              $script:Window.Top = [double]$message.screenY - $script:DragOffsetY
-            }
+          if ($message.type -eq 'dsh-pet-native-drag-stop') {
+            Stop-PetNativeDrag -NotifyRenderer $true -CaptureFinalPosition $true
             return
           }
-          if ($message.type -eq 'dsh-pet-window-drag-end') {
-            $script:Dragging = $false
-            return
-          }
-          if ($message.type -eq 'dsh-pet-regions') {
-            $handle = (New-Object System.Windows.Interop.WindowInteropHelper($script:Window)).Handle
-            if ($handle -ne [IntPtr]::Zero) {
-              $dpi = [System.Windows.Media.VisualTreeHelper]::GetDpi($script:Window)
-              $scale = $dpi.DpiScaleX
-              $topOffset = 22.0
-              $region = New-Object System.Drawing.Region
-              $region.MakeEmpty()
-              $pet = $message.pet
-              if ($null -ne $message.runs -and $message.runs.Count -gt 0) {
-                foreach ($run in $message.runs) {
-                  $x = [int](($pet.x + [double]$run[0]) * $scale)
-                  $y = [int](($pet.y + $topOffset + [double]$run[1]) * $scale)
-                  $w = [Math]::Max(1, [int]([double]$run[2] * $scale))
-                  $h = [Math]::Max(1, [int]$scale)
-                  $region.Union([System.Drawing.Rectangle]::new($x, $y, $w, $h)) | Out-Null
-                }
-              } elseif ($null -ne $pet) {
-                $x = [int]([double]$pet.x * $scale)
-                $y = [int](([double]$pet.y + $topOffset) * $scale)
-                $w = [Math]::Max(1, [int]([double]$pet.w * $scale))
-                $h = [Math]::Max(1, [int]([double]$pet.h * $scale))
-                $region.Union([System.Drawing.Rectangle]::new($x, $y, $w, $h)) | Out-Null
-              }
-              if ($null -ne $message.boxes) {
-                foreach ($box in $message.boxes) {
-                  $x = [int]([double]$box.x * $scale)
-                  $y = [int](([double]$box.y + $topOffset) * $scale)
-                  $w = [Math]::Max(1, [int]([double]$box.w * $scale))
-                  $h = [Math]::Max(1, [int]([double]$box.h * $scale))
-                  $region.Union([System.Drawing.Rectangle]::new($x, $y, $w, $h)) | Out-Null
-                }
-              }
-              $graphics = [System.Drawing.Graphics]::FromHwnd($handle)
-              $hRgn = $region.GetHrgn($graphics)
-              [DshPet.Win32]::SetWindowRgn($handle, $hRgn, $true) | Out-Null
-              $graphics.Dispose()
-              $region.Dispose()
-            }
-            return
-          }
-          if ($message.type -ne 'dsh-pet-bounds') { return }
-          $targetWidth = [Math]::Max(200, [Math]::Min(520, [int]$message.width))
-          $targetHeight = [Math]::Max(180, [Math]::Min(820, ([int]$message.height + 22)))
-          $right = $script:Window.Left + $script:Window.Width
-          $bottom = $script:Window.Top + $script:Window.Height
-          $script:Window.Width = $targetWidth
-          $script:Window.Height = $targetHeight
-          $script:Window.Left = $right - $targetWidth
-          $script:Window.Top = $bottom - $targetHeight
-          $area = [System.Windows.SystemParameters]::WorkArea
-          if ($script:Window.Left -lt $area.Left) { $script:Window.Left = $area.Left }
-          if ($script:Window.Top -lt $area.Top) { $script:Window.Top = $area.Top }
-          if ($script:Window.Left + $script:Window.Width -gt $area.Right) { $script:Window.Left = $area.Right - $script:Window.Width }
-          if ($script:Window.Top + $script:Window.Height -gt $area.Bottom) { $script:Window.Top = $area.Bottom - $script:Window.Height }
-        } catch { }
+          if ($message.type -ne 'dsh-pet-regions') { return }
+          Set-PetHitRegion -FullWindow $false -Boxes @($message.boxes)
+        } catch { Write-PetLog ("Web message handling: " + $_.Exception.Message) }
       })
+      if ($script:LaunchUrl -ne '') { $script:WebView.CoreWebView2.Navigate($script:LaunchUrl) }
     } catch {
       Write-PetLog ("WebView2 init handler: " + $_.Exception.Message)
     }
@@ -205,6 +243,7 @@ try {
   $menu.Items.Add($exit) | Out-Null
   $notify.ContextMenuStrip = $menu
   $script:Window.Add_Closed({
+    Stop-PetNativeDrag
     try { $notify.Visible = $false; $notify.Dispose() } catch { }
   })
 

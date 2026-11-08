@@ -35,7 +35,7 @@ export function apply(ctx) {
   const actions = {
     interact: () => { store.interact() },
     onStatuses: (statuses) => { store.applyStatuses(statuses) },
-    setPosition: (position) => { store.setPosition(position) },
+    setPosition: (position, persist = true) => store.setPosition(position, persist),
     setPrefs: (patch) => { store.setPrefs(patch) },
     importSkin: (text) => store.importSkin(text),
     removeSkin: (id) => { store.removeSkin(id) },

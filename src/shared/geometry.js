@@ -30,16 +30,23 @@ export function clampPetPosition(position, viewport, size) {
  * @returns an absolute `{ left, top, width, maxHeight }` style.
  */
 export function panelPlacement(position, viewport, petSize, panel) {
-  const width = Math.max(160, Math.min(Number(panel.width) || 320, (Number(viewport.width) || 0) - 24))
+  const viewportWidth = Math.max(0, Number(viewport.width) || 0)
+  const petLeft = viewportWidth - (Number(position.right) || 0) - petSize
+  const petRight = viewportWidth - (Number(position.right) || 0)
+  const desiredWidth = Math.max(160, Math.min(Number(panel.width) || 320, viewportWidth - 24))
+  const leftSpace = Math.max(0, petLeft - 24)
+  const rightSpace = Math.max(0, viewportWidth - petRight - 24)
+  const side = leftSpace >= desiredWidth
+    ? 'left'
+    : rightSpace >= desiredWidth
+      ? 'right'
+      : leftSpace >= rightSpace ? 'left' : 'right'
+  const availableWidth = side === 'left' ? leftSpace : rightSpace
+  const width = Math.max(160, Math.min(desiredWidth, availableWidth || desiredWidth))
   const height = Math.max(160, Number(panel.height) || 520)
   const maxHeight = Math.max(160, (Number(viewport.height) || 0) - 24)
   const effectiveHeight = Math.min(height, maxHeight)
-  const petLeft = (Number(viewport.width) || 0) - (Number(position.right) || 0) - petSize
-  const petRight = (Number(viewport.width) || 0) - (Number(position.right) || 0)
-  const leftCandidate = petLeft - width - 12
-  const left = leftCandidate >= 12
-    ? leftCandidate
-    : Math.min(petRight + 12, (Number(viewport.width) || 0) - width - 12)
+  const left = side === 'left' ? petLeft - width - 12 : petRight + 12
   const top = clamp((Number(viewport.height) || 0) - (Number(position.bottom) || 0) - effectiveHeight,
     12, Math.max(12, (Number(viewport.height) || 0) - effectiveHeight - 12))
   const available = Math.max(160, (Number(viewport.height) || 0) - top - 12)

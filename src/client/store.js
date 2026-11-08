@@ -188,7 +188,7 @@ export class PetStore {
 
   /**
    * Subscribe to the session catalog, start timers and account polling.
-   * @returns undefined
+   * @returns the clamped screen position.
    */
   start() {
     if (this.started || this.disposed) return
@@ -1299,9 +1299,10 @@ export class PetStore {
    * Legacy `{ right, bottom }` calls are converted once, for old tests and
    * settings.
    * @param position - screen `{ x, y }`, or legacy viewport `{ right, bottom }`.
+   * @param persist - write the preference immediately; pass false while dragging.
    * @returns undefined
    */
-  setPosition(position) {
+  setPosition(position, persist = true) {
     const size = this.petSize()
     const frame = this.readFrame()
     let next
@@ -1324,8 +1325,9 @@ export class PetStore {
         bottom: Math.max(0, frame.height - (clamped.y - frame.contentY) - size),
       },
     })
-    saveStoredJson(STORAGE_KEYS.prefs, this.prefs)
+    if (persist) saveStoredJson(STORAGE_KEYS.prefs, this.prefs)
     this.publish()
+    return clamped
   }
 
   /** Reset the pet to the current window's bottom-right corner. */

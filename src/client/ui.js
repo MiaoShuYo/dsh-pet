@@ -356,69 +356,144 @@ function PetAnchor(props) {
   const actions = props.actions
   const size = props.size
   const pointer = React.useRef(null)
+  const finishRef = React.useRef(null)
   const clickTimer = React.useRef(null)
   const lastClick = React.useRef(0)
-  const [, setPressed] = React.useState(false)
-  const postDesktopDrag = (type, event) => {
-    if (props.desktopMode !== true) return
+  const [pressed, setPressed] = React.useState(false)
+  const sendNativeDragStart = () => {
     try {
       const bridge = window.chrome && window.chrome.webview
       if (bridge && typeof bridge.postMessage === 'function') {
-        bridge.postMessage({ type, screenX: event.screenX, screenY: event.screenY })
+        bridge.postMessage({
+          type: 'dsh-pet-native-drag-start',
+          screenX: snap.layout.screenX,
+          screenY: snap.layout.screenY,
+          pointerScreenX: event.screenX,
+          pointerScreenY: event.screenY,
+        })
       }
     } catch (_error) { /* bridge unavailable */ }
   }
-
+  const sendNativeDragStop = () => {
+    try {
+      const bridge = window.chrome && window.chrome.webview
+      if (bridge && typeof bridge.postMessage === 'function') {
+        bridge.postMessage({ type: 'dsh-pet-native-drag-stop' })
+      }
+    } catch (_error) { /* bridge unavailable */ }
+  }
   React.useEffect(() => () => {
     if (clickTimer.current !== null) clearTimeout(clickTimer.current)
+    const state = pointer.current
+    if (state !== null && state.frame !== 0) window.cancelAnimationFrame(state.frame)
+    if (state !== null && state.desktop === true) sendNativeDragStop()
+    window.removeEventListener('pointermove', onPointerMove, true)
+    window.removeEventListener('pointerup', finish, true)
+    window.removeEventListener('pointercancel', finish, true)
+    window.removeEventListener('mousemove', onPointerMove, true)
+    window.removeEventListener('mouseup', finish, true)
   }, [])
 
   const onPointerDown = (event) => {
     if (event.button !== undefined && event.button !== 0) return
-    if (event.currentTarget.setPointerCapture !== undefined) {
-      try { event.currentTarget.setPointerCapture(event.pointerId) } catch (_error) { /* ignore */ }
+    if (pointer.current !== null) return
+    if (props.desktopMode !== true && event.currentTarget.setPointerCapture !== undefined && event.pointerId !== undefined) {
+      try { event.currentTarget.setPointerCapture(event.pointerId) } catch (_error) { /* window listeners remain as fallback */ }
     }
     if (props.desktopMode === true) {
-      pointer.current = { x: event.clientX, y: event.clientY, moved: false, desktop: true }
+      pointer.current = {
+        x: event.clientX,
+        y: event.clientY,
+        pointerId: event.pointerId,
+        screenX: snap.layout.screenX,
+        screenY: snap.layout.screenY,
+        pendingX: snap.layout.screenX,
+        pendingY: snap.layout.screenY,
+        localLeft: snap.layout.left,
+        localTop: snap.layout.top,
+        frame: 0,
+        moved: false,
+        finishRequested: false,
+        desktop: true,
+      }
       setPressed(true)
       actions.markActivity()
-      postDesktopDrag('dsh-pet-window-drag-start', event)
+      sendNativeDragStart()
+      window.addEventListener('pointerup', finish, true)
+      window.addEventListener('mouseup', finish, true)
       return
     }
     pointer.current = {
       x: event.clientX,
       y: event.clientY,
+      pointerId: event.pointerId,
       screenX: snap.layout.screenX,
       screenY: snap.layout.screenY,
+      pendingX: snap.layout.screenX,
+      pendingY: snap.layout.screenY,
+      frame: 0,
       moved: false,
     }
     setPressed(true)
     actions.markActivity()
+    window.addEventListener('pointermove', onPointerMove, true)
+    window.addEventListener('pointerup', finish, true)
+    window.addEventListener('pointercancel', finish, true)
+    window.addEventListener('mousemove', onPointerMove, true)
+    window.addEventListener('mouseup', finish, true)
   }
   const onPointerMove = (event) => {
     const state = pointer.current
     if (state === null) return
-    if (state.desktop === true) {
-      const dx = event.clientX - state.x
-      const dy = event.clientY - state.y
-      if (!state.moved && Math.abs(dx) + Math.abs(dy) > 4) state.moved = true
-      if (state.moved) postDesktopDrag('dsh-pet-window-drag-move', event)
-      return
-    }
+    if (state.desktop === true) return
     const dx = event.clientX - state.x
     const dy = event.clientY - state.y
     if (!state.moved && Math.abs(dx) + Math.abs(dy) > 6) state.moved = true
     if (!state.moved) return
-    actions.setPosition({ x: state.screenX + dx, y: state.screenY + dy })
+    state.pendingX = state.screenX + dx
+    state.pendingY = state.screenY + dy
+    if (state.frame !== 0) return
+    state.frame = window.requestAnimationFrame(() => {
+      state.frame = 0
+      actions.setPosition({ x: state.pendingX, y: state.pendingY }, false)
+    })
   }
   const finish = (event) => {
     const state = pointer.current
+    if (state !== null && event !== null && event.pointerId !== undefined && event.pointerId !== state.pointerId) return
+    if (state !== null && state.desktop === true && event !== null) {
+      if (state.finishRequested === true) return
+      state.finishRequested = true
+      sendNativeDragStop()
+      return
+    }
     pointer.current = null
-    setPressed(false)
-    if (event !== null && event.currentTarget !== null && event.currentTarget.releasePointerCapture !== undefined) {
+    window.removeEventListener('pointermove', onPointerMove, true)
+    window.removeEventListener('pointerup', finish, true)
+    window.removeEventListener('pointercancel', finish, true)
+    window.removeEventListener('mousemove', onPointerMove, true)
+    window.removeEventListener('mouseup', finish, true)
+    if (event !== null && event.currentTarget !== null && event.pointerId !== undefined
+      && event.currentTarget.releasePointerCapture !== undefined) {
       try { event.currentTarget.releasePointerCapture(event.pointerId) } catch (_error) { /* ignore */ }
     }
-    if (state !== null && state.desktop === true) postDesktopDrag('dsh-pet-window-drag-end', event)
+    setPressed(false)
+    if (state !== null && state.frame !== 0) window.cancelAnimationFrame(state.frame)
+    if (state !== null && state.moved) {
+      if (state.desktop === true) {
+        const anchor = props.anchorRef && props.anchorRef.current
+        if (anchor !== null && anchor !== undefined) {
+          anchor.style.left = (state.localLeft + state.pendingX - state.screenX) + 'px'
+          anchor.style.top = (state.localTop + state.pendingY - state.screenY) + 'px'
+          anchor.style.transform = ''
+        }
+      }
+      actions.setPosition({
+        x: state.pendingX === undefined ? state.screenX : state.pendingX,
+        y: state.pendingY === undefined ? state.screenY : state.pendingY,
+      })
+      return
+    }
     if (state === null || state.moved) return
     const now = Date.now()
     if (now - lastClick.current < 280) {
@@ -438,6 +513,42 @@ function PetAnchor(props) {
       actions.interact()
     }, 240)
   }
+  finishRef.current = finish
+  React.useEffect(() => {
+    if (props.desktopMode !== true) return undefined
+    const bridge = window.chrome && window.chrome.webview
+    if (bridge === null || bridge === undefined || typeof bridge.addEventListener !== 'function') return undefined
+    const onNativeDragMessage = (event) => {
+      const message = event.data
+      const state = pointer.current
+      if (state === null || state.desktop !== true || message === null || typeof message !== 'object') return
+      if (message.type === 'dsh-pet-native-drag-end') {
+        if (typeof finishRef.current === 'function') finishRef.current(null)
+        return
+      }
+      if (message.type !== 'dsh-pet-native-drag-move') return
+      const x = Number(message.x)
+      const y = Number(message.y)
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return
+      state.pendingX = x
+      state.pendingY = y
+      if (!state.moved && Math.abs(x - state.screenX) + Math.abs(y - state.screenY) > 4) {
+        state.moved = true
+      }
+      if (!state.moved || state.frame !== 0) return
+      state.frame = window.requestAnimationFrame(() => {
+        state.frame = 0
+        if (pointer.current !== state) return
+        const anchor = props.anchorRef && props.anchorRef.current
+        if (anchor === null || anchor === undefined) return
+        const dx = state.pendingX - state.screenX
+        const dy = state.pendingY - state.screenY
+        anchor.style.transform = 'translate3d(' + dx + 'px, ' + dy + 'px, 0)'
+      })
+    }
+    bridge.addEventListener('message', onNativeDragMessage)
+    return () => { bridge.removeEventListener('message', onNativeDragMessage) }
+  }, [props.desktopMode])
   const onKeyDown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
@@ -483,13 +594,13 @@ function PetAnchor(props) {
       uiH('button', {
         type: 'button',
         className: 'dshp-pet',
+        ref: props.petRef,
+        'data-dragging': pressed ? 'true' : 'false',
         'data-state': snap.state,
         style: { '--dshp-size': size + 'px' },
         'aria-label': aria,
         onPointerDown,
-        onPointerMove,
-        onPointerUp: finish,
-        onPointerCancel: finish,
+        onMouseDown: onPointerDown,
         onKeyDown,
         onContextMenu: (event) => {
           event.preventDefault()
@@ -1096,10 +1207,15 @@ function SettingsPanel(props) {
   const [tab, setTab] = React.useState('status')
   const [notice, setNotice] = React.useState('')
   const viewport = { width: window.innerWidth, height: window.innerHeight }
-  const anchor = {
-    right: viewport.width - snap.layout.left - props.size,
-    bottom: viewport.height - snap.layout.top - props.size,
-  }
+  const petRect = props.petRef && props.petRef.current !== null
+    ? props.petRef.current.getBoundingClientRect()
+    : null
+  const anchor = petRect !== null && petRect.width > 0 && petRect.height > 0
+    ? { right: viewport.width - petRect.right, bottom: viewport.height - petRect.bottom }
+    : {
+      right: viewport.width - snap.layout.left - props.size,
+      bottom: viewport.height - snap.layout.top - props.size,
+    }
   const placement = panelPlacement(anchor, viewport, props.size, { width: 336, height: 560 })
   const style = {
     left: placement.left + 'px',
@@ -1177,6 +1293,7 @@ export function PetLayer(props) {
   const [panelOpen, setPanelOpen] = React.useState(false)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const anchorRef = React.useRef(null)
+  const petRef = React.useRef(null)
   const panelRef = React.useRef(null)
 
   React.useEffect(() => {
@@ -1193,6 +1310,8 @@ export function PetLayer(props) {
     }
     const onDown = (event) => {
       const target = event.target
+      const quickMenu = target instanceof Element && target.closest('.dshp-menu') !== null
+      if (menuOpen && !quickMenu) setMenuOpen(false)
       if (panelRef.current !== null && panelRef.current.contains(target)) {
         if (menuOpen) setMenuOpen(false)
         return
@@ -1201,11 +1320,17 @@ export function PetLayer(props) {
       setPanelOpen(false)
       setMenuOpen(false)
     }
+    const onBlur = () => {
+      setPanelOpen(false)
+      setMenuOpen(false)
+    }
     document.addEventListener('keydown', onKey)
     document.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('blur', onBlur)
     return () => {
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('blur', onBlur)
     }
   }, [panelOpen, menuOpen])
 
@@ -1218,10 +1343,12 @@ export function PetLayer(props) {
     const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
     const border = Math.max(0, (window.outerWidth - width) / 2)
     const chrome = Math.max(0, window.outerHeight - height)
-    props.setPosition({
-      x: window.screenX + border + width - size - 16,
-      y: window.screenY + chrome + height - size - 100,
-    })
+    if (snap.prefs.position === null || snap.prefs.position.x === null || snap.prefs.position.y === null) {
+      props.setPosition({
+        x: window.screenX + border + width - size - 16,
+        y: window.screenY + chrome + height - size - 72,
+      })
+    }
     if (!snap.prefs.visible) props.setPrefs({ visible: true })
     try {
       const nameParams = new URLSearchParams(window.name || '')
@@ -1246,118 +1373,42 @@ export function PetLayer(props) {
 
   React.useEffect(() => {
     if (!desktopMode) return undefined
-    const postBounds = () => {
+    let previous = ''
+    const updateHitRegion = () => {
       try {
-        const size = Math.round(snap.prefs.size * (snap.compact ? 0.75 : 1))
-        const border = Math.max(0, (window.outerWidth - window.innerWidth) / 2)
-        const chrome = Math.max(0, window.outerHeight - window.innerHeight)
-        const targetX = window.screenX + border + window.innerWidth - size - 16
-        const targetY = window.screenY + chrome + window.innerHeight - size - 72
-        const current = snap.prefs.position
-        if (current === null || current === undefined
-          || Math.abs(current.x - targetX) > 8 || Math.abs(current.y - targetY) > 8) {
-          props.setPosition({ x: targetX, y: targetY })
-        }
-        const nodes = document.querySelectorAll('.dshp-anchor, .dshp-panel, .dshp-plaque, .dshp-bubble, .dshp-tasks, .dshp-menu')
-        let left = Infinity
-        let top = Infinity
-        let right = 0
-        let bottom = 0
-        nodes.forEach((node) => {
-          const rect = node.getBoundingClientRect()
-          if (rect.width < 2 || rect.height < 2) return
-          left = Math.min(left, rect.left)
-          top = Math.min(top, rect.top)
-          right = Math.max(right, rect.right)
-          bottom = Math.max(bottom, rect.bottom)
-        })
-        if (!Number.isFinite(left) || right <= left) return
-        const bridge = window.chrome && window.chrome.webview
-        if (bridge && typeof bridge.postMessage === 'function') {
-          bridge.postMessage({
-            type: 'dsh-pet-bounds',
-            width: Math.ceil(right - left + 16),
-            height: Math.ceil(bottom - top + 16),
-          })
-        }
-      } catch (_error) { /* bridge unavailable */ }
-    }
-    const timer = setInterval(postBounds, 700)
-    const first = setTimeout(postBounds, 250)
-    let maskBusy = false
-    const postRegions = async () => {
-      if (maskBusy) return
-      maskBusy = true
-      try {
-        const petEl = document.querySelector('.dshp-pet')
-        if (petEl === null) return
-        const rect = petEl.getBoundingClientRect()
-        if (rect.width < 2 || rect.height < 2) return
         const bridge = window.chrome && window.chrome.webview
         if (!bridge || typeof bridge.postMessage !== 'function') return
-        const boxSelectors = ['.dshp-plaque', '.dshp-bubble', '.dshp-tasks', '.dshp-panel', '.dshp-menu', '.dshp-badge', '.dshp-focus-chip']
+        const pet = document.querySelector('.dshp-pet')
+        if (pet !== null && pet.getAttribute('data-dragging') === 'true') return
         const boxes = []
-        for (const selector of boxSelectors) {
-          const element = document.querySelector(selector)
-          if (element === null) continue
-          const box = element.getBoundingClientRect()
-          if (box.width < 2 || box.height < 2) continue
-          boxes.push({ x: box.left, y: box.top, w: box.width, h: box.height })
-        }
-        let runs = null
-        const svg = petEl.querySelector('svg')
-        if (svg !== null) {
-          try {
-            const xml = new XMLSerializer().serializeToString(svg)
-            const image = new Image()
-            image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml)
-            await image.decode()
-            const canvas = document.createElement('canvas')
-            canvas.width = Math.max(1, Math.ceil(rect.width))
-            canvas.height = Math.max(1, Math.ceil(rect.height))
-            const context = canvas.getContext('2d')
-            if (context !== null) {
-              context.drawImage(image, 0, 0, canvas.width, canvas.height)
-              const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
-              runs = []
-              for (let y = 0; y < canvas.height; y += 1) {
-                let start = -1
-                for (let x = 0; x <= canvas.width; x += 1) {
-                  const alpha = x < canvas.width ? pixels[(y * canvas.width + x) * 4 + 3] : 0
-                  if (alpha > 28 && start < 0) start = x
-                  else if (alpha <= 28 && start >= 0) {
-                    runs.push([start, y, x - start])
-                    start = -1
-                  }
-                }
-              }
-            }
-          } catch (_error) { runs = null }
-        }
-        bridge.postMessage({
-          type: 'dsh-pet-regions',
-          pet: { x: rect.left, y: rect.top, w: rect.width, h: rect.height },
-          boxes,
-          runs,
+        document.querySelectorAll('.dshp-pet, .dshp-panel, .dshp-menu, .dshp-plaque, .dshp-bubble, .dshp-tasks, .dshp-focus-chip').forEach((element) => {
+          const rect = element.getBoundingClientRect()
+          if (rect.width < 2 || rect.height < 2) return
+          boxes.push({
+            x: rect.left,
+            y: rect.top,
+            w: rect.width,
+            h: rect.height,
+          })
         })
-      } catch (_error) { /* bridge unavailable */ } finally {
-        maskBusy = false
-      }
+        const signature = JSON.stringify(boxes)
+        if (signature === previous) return
+        previous = signature
+        bridge.postMessage({ type: 'dsh-pet-regions', boxes })
+      } catch (_error) { /* bridge unavailable */ }
     }
-    const regionTimer = setInterval(postRegions, 1200)
-    const firstRegion = setTimeout(postRegions, 500)
-    const observer = typeof MutationObserver === 'function' ? new MutationObserver(postBounds) : null
+    const timer = window.setInterval(updateHitRegion, 120)
+    const first = window.setTimeout(updateHitRegion, 80)
+    const observer = typeof MutationObserver === 'function' ? new MutationObserver(updateHitRegion) : null
     if (observer !== null) observer.observe(document.body, { childList: true, subtree: true, attributes: true })
-    window.addEventListener('resize', postBounds)
+    window.addEventListener('resize', updateHitRegion)
     return () => {
-      clearInterval(timer)
-      clearTimeout(first)
-      clearInterval(regionTimer)
-      clearTimeout(firstRegion)
-      window.removeEventListener('resize', postBounds)
+      window.clearInterval(timer)
+      window.clearTimeout(first)
       if (observer !== null) observer.disconnect()
+      window.removeEventListener('resize', updateHitRegion)
     }
-  }, [desktopMode, panelOpen])
+  }, [desktopMode, panelOpen, menuOpen])
 
   if (!desktopMode) return null
 
@@ -1384,6 +1435,7 @@ export function PetLayer(props) {
       actions: props,
       size,
       anchorRef,
+      petRef,
       menuOpen,
       setMenuOpen,
       setPanelOpen: setPanel,
@@ -1394,6 +1446,7 @@ export function PetLayer(props) {
         snap,
         actions: props,
         size,
+        petRef,
         panelRef,
         onClose: () => { setPanelOpen(false) },
       })
